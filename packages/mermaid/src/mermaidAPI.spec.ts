@@ -16,7 +16,7 @@ import * as configApi from './config.js';
 // --------------
 // Mocks
 //   To mock a module, first define a mock for it, then (if used explicitly in the tests) import it. Be sure the path points to exactly the same file as is imported in mermaidAPI (the module being tested)
-vi.mock('./styles.js', () => {
+vi.mock(import('./styles.js'), () => {
   return {
     addStylesForDiagram: vi.fn(),
     default: vi.fn().mockReturnValue(' .userStyle { font-weight:bold; }'),
@@ -25,7 +25,7 @@ vi.mock('./styles.js', () => {
 
 import getStyles from './styles.js';
 
-vi.mock('stylis', () => {
+vi.mock(import('stylis'), () => {
   return {
     stringify: vi.fn(),
     compile: vi.fn(),
