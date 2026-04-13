@@ -1,5 +1,6 @@
 // cspell:ignore nonterminal
-import type { DrawDefinition } from '../../diagram-api/types.js';
+import type d3 from 'd3';
+import type { DrawDefinition, SVG } from '../../diagram-api/types.js';
 import type { ASTNode, RailroadRule, RenderResult } from './railroadTypes.js';
 import { log } from '../../logger.js';
 import { getConfig as getConfigAPI } from '../../config.js';
@@ -7,6 +8,8 @@ import { selectSvgElement } from '../../rendering-util/selectSvgElement.js';
 import { configureSvgSize } from '../../setupGraphViewbox.js';
 import { db } from './railroadDb.js';
 import { buildRailroadStyleOptions } from './styles.js';
+
+type SVGGroup = d3.Selection<SVGGElement, unknown, Element | null, unknown>;
 
 /**
  * SVG Path builder utility
@@ -56,11 +59,11 @@ class PathBuilder {
  * Railroad diagram renderer
  */
 class RailroadRenderer {
-  private svg: any;
+  private svg: SVG;
   private config: ReturnType<typeof buildRailroadStyleOptions>;
   private textCache = new Map<string, { width: number; height: number }>();
 
-  constructor(svg: any, config = buildRailroadStyleOptions()) {
+  constructor(svg: SVG, config = buildRailroadStyleOptions()) {
     this.svg = svg;
     this.config = config;
   }
@@ -80,7 +83,7 @@ class RailroadRenderer {
       .attr('font-size', this.config.fontSize)
       .text(text);
 
-    const bbox = tempText.node().getBBox();
+    const bbox = tempText.node()!.getBBox();
     const dimensions = { width: bbox.width, height: bbox.height };
 
     tempText.remove();
@@ -92,12 +95,12 @@ class RailroadRenderer {
   /**
    * Render terminal symbol (rounded rectangle)
    */
-  private renderTerminal(value: string): RenderResult {
+  private renderTerminal(parent: SVG | SVGGroup, value: string): RenderResult {
     const textDim = this.measureText(value);
     const width = textDim.width + this.config.padding * 2;
     const height = textDim.height + this.config.padding * 2;
 
-    const group = this.svg.append('g').attr('class', 'railroad-terminal');
+    const group = parent.append('g').attr('class', 'railroad-terminal');
 
     // Rounded rectangle
     group
@@ -117,7 +120,7 @@ class RailroadRenderer {
       .text(value);
 
     return {
-      element: group.node(),
+      element: group.node()!,
       dimensions: {
         width,
         height,
@@ -130,12 +133,12 @@ class RailroadRenderer {
   /**
    * Render non-terminal symbol (rectangle)
    */
-  private renderNonTerminal(name: string): RenderResult {
+  private renderNonTerminal(parent: SVG | SVGGroup, name: string): RenderResult {
     const textDim = this.measureText(name);
     const width = textDim.width + this.config.padding * 2;
     const height = textDim.height + this.config.padding * 2;
 
-    const group = this.svg.append('g').attr('class', 'railroad-nonterminal');
+    const group = parent.append('g').attr('class', 'railroad-nonterminal');
 
     // Rectangle
     group.append('rect').attr('x', 0).attr('y', 0).attr('width', width).attr('height', height);
@@ -148,7 +151,7 @@ class RailroadRenderer {
       .text(name);
 
     return {
-      element: group.node(),
+      element: group.node()!,
       dimensions: {
         width,
         height,
@@ -161,8 +164,8 @@ class RailroadRenderer {
   /**
    * Render sequence (horizontal concatenation)
    */
-  private renderSequence(elements: ASTNode[]): RenderResult {
-    const rendered = elements.map((e) => this.renderExpression(e));
+  private renderSequence(parent: SVG | SVGGroup, elements: ASTNode[]): RenderResult {
+    const rendered = elements.map((e) => this.renderExpression(parent, e));
 
     let totalWidth = 0;
     let maxUp = 0;
@@ -176,7 +179,7 @@ class RailroadRenderer {
 
     totalWidth += (rendered.length - 1) * this.config.horizontalSeparation;
 
-    const group = this.svg.append('g').attr('class', 'railroad-sequence');
+    const group = parent.append('g').attr('class', 'railroad-sequence');
     let x = 0;
 
     for (let i = 0; i < rendered.length; i++) {
@@ -184,7 +187,7 @@ class RailroadRenderer {
       const y = maxUp - r.dimensions.up;
 
       // Position element
-      const elem = group.node().appendChild(r.element);
+      const elem = group.node()!.appendChild(r.element);
       elem.setAttribute('transform', `translate(${x}, ${y})`);
 
       // Draw connecting line to next element
@@ -203,7 +206,7 @@ class RailroadRenderer {
     }
 
     return {
-      element: group.node(),
+      element: group.node()!,
       dimensions: {
         width: totalWidth,
         height: maxUp + maxDown,
@@ -216,8 +219,8 @@ class RailroadRenderer {
   /**
    * Render choice (vertical alternatives)
    */
-  private renderChoice(alternatives: ASTNode[]): RenderResult {
-    const rendered = alternatives.map((a) => this.renderExpression(a));
+  private renderChoice(parent: SVG | SVGGroup, alternatives: ASTNode[]): RenderResult {
+    const rendered = alternatives.map((a) => this.renderExpression(parent, a));
 
     let maxWidth = 0;
     let totalHeight = 0;
@@ -233,7 +236,7 @@ class RailroadRenderer {
     const arcWidth = arcRadius * 4;
     const totalWidth = maxWidth + arcWidth;
 
-    const group = this.svg.append('g').attr('class', 'railroad-choice');
+    const group = parent.append('g').attr('class', 'railroad-choice');
     let y = 0;
     const centerY = totalHeight / 2;
 
@@ -243,7 +246,7 @@ class RailroadRenderer {
 
       // Position element in the center
       const elemX = arcRadius * 2 + (maxWidth - r.dimensions.width) / 2;
-      const elem = group.node().appendChild(r.element);
+      const elem = group.node()!.appendChild(r.element);
       elem.setAttribute('transform', `translate(${elemX}, ${elemY})`);
 
       // Left arc from center to this alternative
@@ -302,7 +305,7 @@ class RailroadRenderer {
     }
 
     return {
-      element: group.node(),
+      element: group.node()!,
       dimensions: {
         width: totalWidth,
         height: totalHeight,
@@ -315,19 +318,19 @@ class RailroadRenderer {
   /**
    * Render optional (bypass path above)
    */
-  private renderOptional(element: ASTNode): RenderResult {
-    const inner = this.renderExpression(element);
+  private renderOptional(parent: SVG | SVGGroup, element: ASTNode): RenderResult {
+    const inner = this.renderExpression(parent, element);
     const arcRadius = this.config.arcRadius;
     const arcHeight = arcRadius * 2;
     const totalWidth = inner.dimensions.width + arcRadius * 4;
     const totalHeight = inner.dimensions.height + arcHeight;
 
-    const group = this.svg.append('g').attr('class', 'railroad-optional');
+    const group = parent.append('g').attr('class', 'railroad-optional');
 
     // Position main element
     const elemX = arcRadius * 2;
     const elemY = arcHeight;
-    const elem = group.node().appendChild(inner.element);
+    const elem = group.node()!.appendChild(inner.element);
     elem.setAttribute('transform', `translate(${elemX}, ${elemY})`);
 
     const centerY = elemY + inner.dimensions.up;
@@ -355,7 +358,7 @@ class RailroadRenderer {
     group.append('path').attr('class', 'railroad-line').attr('d', bypassPath.build());
 
     return {
-      element: group.node(),
+      element: group.node()!,
       dimensions: {
         width: totalWidth,
         height: totalHeight,
@@ -368,8 +371,8 @@ class RailroadRenderer {
   /**
    * Render repetition (loop back path)
    */
-  private renderRepetition(element: ASTNode, min: number): RenderResult {
-    const inner = this.renderExpression(element);
+  private renderRepetition(parent: SVG | SVGGroup, element: ASTNode, min: number): RenderResult {
+    const inner = this.renderExpression(parent, element);
     const arcRadius = this.config.arcRadius;
     const arcHeight = arcRadius * 2;
     const totalWidth = inner.dimensions.width + arcRadius * 4;
@@ -378,12 +381,12 @@ class RailroadRenderer {
     const hasBypass = min === 0;
     const totalHeight = inner.dimensions.height + arcHeight + (hasBypass ? arcHeight : 0);
 
-    const group = this.svg.append('g').attr('class', 'railroad-repetition');
+    const group = parent.append('g').attr('class', 'railroad-repetition');
 
     // Position main element
     const elemX = arcRadius * 2;
     const elemY = hasBypass ? arcHeight : 0;
-    const elem = group.node().appendChild(inner.element);
+    const elem = group.node()!.appendChild(inner.element);
     elem.setAttribute('transform', `translate(${elemX}, ${elemY})`);
 
     const centerY = elemY + inner.dimensions.up;
@@ -457,7 +460,7 @@ class RailroadRenderer {
     }
 
     return {
-      element: group.node(),
+      element: group.node()!,
       dimensions: {
         width: totalWidth,
         height: totalHeight,
@@ -470,12 +473,12 @@ class RailroadRenderer {
   /**
    * Render special sequence
    */
-  private renderSpecial(text: string): RenderResult {
+  private renderSpecial(parent: SVG | SVGGroup, text: string): RenderResult {
     const textDim = this.measureText('? ' + text + ' ?');
     const width = textDim.width + this.config.padding * 2;
     const height = textDim.height + this.config.padding * 2;
 
-    const group = this.svg.append('g').attr('class', 'railroad-special');
+    const group = parent.append('g').attr('class', 'railroad-special');
 
     // Rectangle with dashed border
     group.append('rect').attr('x', 0).attr('y', 0).attr('width', width).attr('height', height);
@@ -488,7 +491,7 @@ class RailroadRenderer {
       .text('? ' + text + ' ?');
 
     return {
-      element: group.node(),
+      element: group.node()!,
       dimensions: {
         width,
         height,
@@ -501,36 +504,40 @@ class RailroadRenderer {
   /**
    * Render an expression (recursive)
    */
-  renderExpression(node: ASTNode): RenderResult {
+  renderExpression(parent: SVG | SVGGroup, node: ASTNode): RenderResult {
     switch (node.type) {
       case 'terminal':
-        return this.renderTerminal(node.value);
+        return this.renderTerminal(parent, node.value);
 
       case 'nonterminal':
-        return this.renderNonTerminal(node.name);
+        return this.renderNonTerminal(parent, node.name);
 
       case 'sequence':
-        return this.renderSequence(node.elements);
+        return this.renderSequence(parent, node.elements);
 
       case 'choice':
-        return this.renderChoice(node.alternatives);
+        return this.renderChoice(parent, node.alternatives);
 
       case 'optional':
-        return this.renderOptional(node.element);
+        return this.renderOptional(parent, node.element);
 
       case 'repetition':
-        return this.renderRepetition(node.element, node.min);
+        return this.renderRepetition(parent, node.element, node.min);
 
       case 'group':
-        return this.renderExpression(node.element);
+        return this.renderExpression(parent, node.element);
 
       case 'special':
-        return this.renderSpecial(node.text);
+        return this.renderSpecial(parent, node.text);
 
       case 'exception':
-        // For now, render as sequence of base and except
-        // TODO: Implement proper exception rendering
-        return this.renderSequence([node.base, { type: 'terminal', value: '-' }, node.except]);
+        // Renders exception as [base, "-", except] — a visual placeholder until
+        // a dedicated exception diagram element is designed (see #4252).
+        return this.renderSequence(parent, [
+          node.base,
+          { type: 'terminal', value: '-' },
+          node.except,
+        ]);
 
       default:
         throw new Error(`Unknown node type: ${(node as any).type}`);
@@ -566,11 +573,10 @@ class RailroadRenderer {
       .attr('r', this.config.markerRadius);
 
     // Render definition
-    const defGroup = group.append('g').attr('transform', `translate(${nameWidth + 20}, 0)`);
-    const previousSvg = this.svg;
-    this.svg = defGroup;
-    const result = this.renderExpression(rule.definition);
-    this.svg = previousSvg;
+    const defGroup: SVGGroup = group
+      .append('g')
+      .attr('transform', `translate(${nameWidth + 20}, 0)`);
+    const result = this.renderExpression(defGroup, rule.definition);
 
     // End marker
     const endMarker = group.append('g').attr('class', 'railroad-end');
