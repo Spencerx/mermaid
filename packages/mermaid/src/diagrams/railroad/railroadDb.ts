@@ -3,10 +3,9 @@ import { log } from '../../logger.js';
 import { clear as commonClear } from '../common/commonDb.js';
 import { sanitizeText as commonSanitizeText } from '../common/common.js';
 
-let title = '';
+let diagramTitle = '';
 let accTitle = '';
 let accDescription = '';
-let diagramTitle = '';
 const rules: RailroadRule[] = [];
 const ruleMap = new Map<string, RailroadRule>();
 
@@ -49,10 +48,9 @@ const sanitizeAstNode = (node: ASTNode): ASTNode => {
  * Clear all diagram state
  */
 const clear = (): void => {
-  title = '';
+  diagramTitle = '';
   accTitle = '';
   accDescription = '';
-  diagramTitle = '';
   rules.length = 0;
   ruleMap.clear();
   commonClear();
@@ -63,7 +61,7 @@ const clear = (): void => {
  * Set diagram title
  */
 const setTitle = (text: string): void => {
-  title = sanitizeText(text);
+  diagramTitle = sanitizeText(text);
   log.debug('[Railroad] Title set:', text);
 };
 
@@ -71,7 +69,7 @@ const setTitle = (text: string): void => {
  * Get diagram title
  */
 const getTitle = (): string => {
-  return title;
+  return diagramTitle;
 };
 
 /**
@@ -140,20 +138,8 @@ const getAccDescription = (): string => {
   return accDescription;
 };
 
-/**
- * Set diagram title (alias for setTitle)
- */
-const setDiagramTitle = (text: string): void => {
-  diagramTitle = sanitizeText(text);
-  log.debug('[Railroad] Diagram title set:', text);
-};
-
-/**
- * Get diagram title (alias for getTitle)
- */
-const getDiagramTitle = (): string => {
-  return diagramTitle || title;
-};
+const setDiagramTitle = setTitle;
+const getDiagramTitle = getTitle;
 
 /**
  * Export the database object
