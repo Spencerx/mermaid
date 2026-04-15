@@ -35,6 +35,7 @@ import { treemap } from '../diagrams/treemap/detector.js';
 import wardley from '../diagrams/wardley/wardleyDetector.js';
 import { cynefin } from '../diagrams/cynefin/cynefinDetector.js';
 import { railroad } from '../diagrams/railroad/railroadDetector.js';
+import { railroadEbnf } from '../diagrams/railroad/ebnfDetector.js';
 import '../type.d.ts';
 
 let hasLoadedDiagrams = false;
@@ -113,6 +114,7 @@ export const addDiagrams = () => {
     ishikawa,
     treemap,
     railroad,
+    railroadEbnf,
     venn,
     wardley,
     cynefin

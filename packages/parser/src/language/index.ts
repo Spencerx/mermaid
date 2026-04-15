@@ -19,6 +19,24 @@ export {
   RailroadSpecialExpr,
   RailroadTerminalExpr,
   RailroadZeroOrMoreExpr,
+  RailroadEbnf,
+  EbnfRule,
+  EbnfChoice,
+  EbnfSequence,
+  EbnfTerm,
+  EbnfPrimary,
+  EbnfPostfix,
+  EbnfTerminal,
+  EbnfNonTerminal,
+  EbnfSpecial,
+  EbnfGroup,
+  EbnfOptional,
+  EbnfRepetition,
+  EbnfOptionalPostfix,
+  EbnfZeroOrMorePostfix,
+  EbnfOneOrMorePostfix,
+  EbnfExceptionPostfix,
+  isRailroadEbnf,
   Treemap,
   Wardley,
   Cynefin,
@@ -67,6 +85,7 @@ export {
   EventModelingGeneratedModule,
   RadarGrammarGeneratedModule as RadarGeneratedModule,
   RailroadGrammarGeneratedModule as RailroadGeneratedModule,
+  RailroadEbnfGrammarGeneratedModule as RailroadEbnfGeneratedModule,
   TreemapGrammarGeneratedModule as TreemapGeneratedModule,
   TreeViewGrammarGeneratedModule as TreeViewGeneratedModule,
   WardleyGrammarGeneratedModule as WardleyGeneratedModule,
@@ -83,6 +102,7 @@ export * from './architecture/index.js';
 export * from './eventmodeling/index.js';
 export * from './radar/index.js';
 export * from './railroad/index.js';
+export * from './railroad-ebnf/index.js';
 export * from './treemap/index.js';
 export * from './wardley/index.js';
 export * from './cynefin/index.js';
