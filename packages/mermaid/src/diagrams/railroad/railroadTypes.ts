@@ -37,20 +37,9 @@ export interface RepetitionNode {
   separator?: ASTNode; // Optional separator (e.g., comma)
 }
 
-export interface GroupNode {
-  type: 'group';
-  element: ASTNode;
-}
-
 export interface SpecialNode {
   type: 'special';
   text: string;
-}
-
-export interface ExceptionNode {
-  type: 'exception';
-  base: ASTNode;
-  except: ASTNode;
 }
 
 /**
@@ -63,9 +52,7 @@ export type ASTNode =
   | ChoiceNode
   | OptionalNode
   | RepetitionNode
-  | GroupNode
-  | SpecialNode
-  | ExceptionNode;
+  | SpecialNode;
 
 /**
  * Railroad diagram rule definition
