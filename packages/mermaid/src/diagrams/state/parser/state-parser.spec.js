@@ -15,14 +15,36 @@ describe('state parser can parse...', () => {
   });
 
   describe('invalid name between state and curly bracket', () => {
-    it('should throw error when name has multiple words', () => {
-      const diagramText = `stateDiagram-v2
-      state invalid syntax { X }
-      state invalid syntax with more than 2 words { Y }`;
+    describe('valid syntax', () => {
+      it('should only accept 1 word', () => {
+        const diagramText = `stateDiagram-v2
+        state valid { X }`;
 
-      expect(() => {
         stateDiagram.parser.parse(diagramText);
-      }).toThrow('Error: State name must be a single word.');
+
+        const states = stateDiagram.parser.yy.getStates();
+        expect(states.get('valid')).not.toBeUndefined();
+      });
+    });
+
+    describe('invalid syntax', () => {
+      it('should throw error with 2 words', () => {
+        const diagramText = `stateDiagram-v2
+        state invalid syntax { Y }`;
+
+        expect(() => {
+          stateDiagram.parser.parse(diagramText);
+        }).toThrow('Error: State name must be a single word.');
+      });
+
+      it('should also throw with more than 2 words', () => {
+        const diagramText = `stateDiagram-v2
+        state invalid syntax with more than 2 words { Z }`;
+
+        expect(() => {
+          stateDiagram.parser.parse(diagramText);
+        }).toThrow('Error: State name must be a single word.');
+      });
     });
   });
 
