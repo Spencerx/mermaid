@@ -351,11 +351,8 @@ export const extractor = (graph, depth) => {
           return {};
         });
 
-      // Copy all children into the subgraph
-      const children = graph.children(node);
-      for (const child of children) {
-        copy(child, graph, clusterGraph, child);
-      }
+      // Copy the cluster (and any nested sub-clusters) into the subgraph
+      copy(node, graph, clusterGraph, node);
       // Attach the subgraph to the cluster node for internal layout
       const clusterNodeData = graph.node(node) || {};
       graph.setNode(node, {
@@ -406,10 +403,7 @@ export const extractor = (graph, depth) => {
           return {};
         });
 
-      const children = graph.children(node);
-      for (const child of children) {
-        copy(child, graph, clusterGraph, child);
-      }
+      copy(node, graph, clusterGraph, node);
       const clusterNodeData = graph.node(node) || {};
       graph.setNode(node, {
         ...clusterNodeData,
