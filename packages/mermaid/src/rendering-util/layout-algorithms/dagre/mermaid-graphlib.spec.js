@@ -399,6 +399,80 @@ flowchart TB
     expect(aGraph.parent('c')).toBe('B');
     expect(aGraph.parent('B')).toBe(undefined);
   });
+  describe('explicit direction (clusterData.dir) – Branch 1 coverage', function () {
+    it('GLB-DIR1: cluster with explicit dir and external connections should become a clusterNode', function () {
+      /*
+        subgraph C1 [direction LR]
+          a
+        end
+        C1 --> b   (external connection)
+      */
+      g.setNode('a', { data: 1, dir: 'LR' });
+      g.setNode('b', { data: 2 });
+      g.setNode('C1', { data: 3, dir: 'LR' });
+      g.setParent('a', 'C1');
+      g.setEdge('C1', 'b', { data: 'link1' }, '1');
+
+      adjustClustersAndEdges(g);
+
+      // C1 should have been extracted into a clusterNode
+      expect(g.node('C1').clusterNode).toBe(true);
+      // The internal child 'a' should be in the clusterGraph, not in the outer graph
+      const C1Graph = g.node('C1').graph;
+      expect(C1Graph.nodes()).toEqual(['a']);
+      // Outer graph should only contain C1 and b
+      expect(g.nodes()).toEqual(['b', 'C1']);
+    });
+
+    it('GLB-DIR2: cluster with explicit dir and no external connections should still become a clusterNode', function () {
+      /*
+        subgraph C1 [direction LR]
+          a --> b
+        end
+        (no edges leaving C1)
+      */
+      g.setNode('a', { data: 1 });
+      g.setNode('b', { data: 2 });
+      g.setNode('C1', { data: 3, dir: 'LR' });
+      g.setParent('a', 'C1');
+      g.setParent('b', 'C1');
+      g.setEdge('a', 'b', { data: 'internal' }, '1');
+
+      adjustClustersAndEdges(g);
+
+      expect(g.node('C1').clusterNode).toBe(true);
+      const C1Graph = g.node('C1').graph;
+      expect(C1Graph.nodes().sort()).toEqual(['a', 'b']);
+      expect(C1Graph.edges().length).toBe(1);
+      expect(g.nodes()).toEqual(['C1']);
+    });
+
+    it('GLB-DIR3: sibling clusters with different explicit directions and inter-cluster edge', function () {
+      /*
+        subgraph B1 [direction RL]
+          i1
+        end
+        subgraph B2 [direction BT]
+          i2
+        end
+        B1 --> B2
+      */
+      g.setNode('i1', { data: 1 });
+      g.setNode('i2', { data: 2 });
+      g.setNode('B1', { data: 3, dir: 'RL' });
+      g.setNode('B2', { data: 4, dir: 'BT' });
+      g.setParent('i1', 'B1');
+      g.setParent('i2', 'B2');
+      g.setEdge('B1', 'B2', { data: 'sibling-link' }, '1');
+
+      adjustClustersAndEdges(g);
+
+      expect(g.node('B1').clusterNode).toBe(true);
+      expect(g.node('B2').clusterNode).toBe(true);
+      expect(g.node('B1').graph.nodes()).toEqual(['i1']);
+      expect(g.node('B2').graph.nodes()).toEqual(['i2']);
+    });
+  });
 });
 describe('extractDescendants', function () {
   let g;
