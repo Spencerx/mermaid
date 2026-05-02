@@ -270,7 +270,13 @@ export const dataFetcher = (
       log.info('Setting cluster for XCX', itemId, getDir(parsedItem));
       newNode.type = 'group';
       newNode.isGroup = true;
-      newNode.dir = getDir(parsedItem);
+      // Only propagate dir when the user explicitly wrote a 'direction' keyword inside the
+      // state body.  If left unset (undefined), mermaid-graphlib's Branch 1 predicate
+      // (clusterData?.dir) stays falsy, so the original !externalConnections-based
+      // extraction rule applies — compound states without an explicit direction keep the
+      // same layout behaviour they had before this feature was added.
+      const hasExplicitDir = parsedItem.doc.some((s) => s.stmt === 'dir');
+      newNode.dir = hasExplicitDir ? getDir(parsedItem) : undefined;
       newNode.shape = parsedItem.type === DIVIDER_TYPE ? SHAPE_DIVIDER : SHAPE_GROUP;
       newNode.cssClasses = `${newNode.cssClasses} ${CSS_DIAGRAM_CLUSTER} ${altFlag ? CSS_DIAGRAM_CLUSTER_ALT : ''}`;
     }
