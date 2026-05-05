@@ -138,8 +138,8 @@ Members must already be declared as services or junctions, and at least two memb
 
 Pick the axis based on how the listed members are connected:
 
-- Use **`align column`** when the members connect to a common downstream node *via the same horizontal port pair* (e.g. all use `R --> L:mcp`). They naturally form a vertical stack to one side, with parallel arrows reaching the downstream node.
-- Use **`align row`** when the members connect to a common downstream node *via the same vertical port pair* (e.g. all use `B --> T:proc`). They naturally form a horizontal row above the downstream node.
+- Use **`align column`** when the members connect to a common downstream node _via the same horizontal port pair_ (e.g. all use `R --> L:mcp`). They naturally form a vertical stack to one side, with parallel arrows reaching the downstream node.
+- Use **`align row`** when the members connect to a common downstream node _via the same vertical port pair_ (e.g. all use `B --> T:proc`). They naturally form a horizontal row above the downstream node.
 
 Three databases all feeding `mcp` via right-to-left edges → stack them in a column:
 
