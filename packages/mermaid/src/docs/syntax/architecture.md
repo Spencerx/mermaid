@@ -158,42 +158,41 @@ The order of members in the `align` directive determines their order along the a
 `align row` only pins the y-coordinate of its members. To produce a clean grid where columns also align across tiers, pair each `align row` with one or more `align column` directives. The columns can span as many rows as you like — chain every node that should share an x-coordinate, even across groups.
 
 ```mermaid-example
-%%{init: {"architecture": {"iconSize": 50, "fontSize": 12}}}%%
 architecture-beta
-    group collection(cloud)[Collection]
-        service ai_pipes(server)[AI Pipelines] in collection
-        service neptune_plat(server)[Neptune Platform] in collection
-        service legacy(server)[Legacy Feeds] in collection
+    group sources(cloud)[Sources]
+        service src_a(server)[Source A] in sources
+        service src_b(server)[Source B] in sources
+        service src_c(server)[Source C] in sources
 
-    group cop(database)[Common Operating Picture]
-        service pg_agentic(database)[Postgres Agentic] in cop
-        service clickhouse(database)[ClickHouse] in cop
-        service pg_prod(database)[Postgres Prod] in cop
+    group storage(database)[Storage]
+        service db_one(database)[DB One] in storage
+        service db_two(database)[DB Two] in storage
+        service db_three(database)[DB Three] in storage
 
     group output(disk)[Output]
         service brief(disk)[Brief] in output
         service analyst(server)[Analyst] in output
         service delivery(cloud)[Delivery] in output
 
-    ai_pipes:B --> T:pg_agentic
-    neptune_plat:B --> T:clickhouse
-    legacy:B --> T:pg_prod
-    clickhouse:B --> T:brief
+    src_a:B --> T:db_one
+    src_b:B --> T:db_two
+    src_c:B --> T:db_three
+    db_two:B --> T:brief
     brief:R --> L:analyst
     analyst:R --> L:delivery
 
-    align row ai_pipes neptune_plat legacy
-    align row pg_agentic clickhouse pg_prod
+    align row src_a src_b src_c
+    align row db_one db_two db_three
     align row brief analyst delivery
 
-    align column ai_pipes pg_agentic
-    align column neptune_plat clickhouse brief
-    align column legacy pg_prod
+    align column src_a db_one
+    align column src_b db_two brief
+    align column src_c db_three
 ```
 
-The result is three left-to-right tiers stacked vertically with a straight spine through the middle column. Edges between aligned nodes render as straight horizontal or vertical lines; cross-axis edges (e.g. `pg_agentic:R --> T:mcp_tools`) get a single 90° elbow.
+The result is three left-to-right tiers stacked vertically with a straight spine through the middle column. Edges between aligned nodes render as straight horizontal or vertical lines; cross-axis edges (e.g. `db_one:R --> T:hub`) get a single 90° elbow.
 
-> **Tip:** if a label like `ClickHouse` is too wide to fit on one line at small `iconSize` values, it will wrap at the nearest character boundary. Increase `iconSize` (or use a shorter title) to keep long single-word labels on one line.
+> **Tip:** if a long single-word label is too wide to fit on one line at small `iconSize` values, increase `iconSize` (or use a shorter title) to keep it on one line.
 
 ### Junctions
 
