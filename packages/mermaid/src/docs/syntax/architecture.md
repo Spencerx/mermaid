@@ -188,7 +188,7 @@ mermaid.initialize({
 
 ### Layout tuning (v<MERMAID_RELEASE_VERSION>+)
 
-When sibling services in the same group share similar edge topology — for example, three databases all connecting `B --> T:mcp` — the underlying [fcose](https://github.com/iVis-at-Bilkent/cytoscape.js-fcose) layout has no signal to spread them apart and they may overlap. The following options expose fcose options so you can adjust the layout without changing your diagram source:
+When sibling services in the same group share similar edge topology — for example, three databases all connecting `B --> T:mcp` — the underlying [fcose](https://github.com/iVis-at-Bilkent/cytoscape.js-fcose) layout has no signal to spread them apart and they may overlap. The following options pass through to the underlying fcose layout so you can adjust it without changing your diagram source:
 
 | Option                      | Type   | Default | Description                                                                                                                                                                                           |
 | --------------------------- | ------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
