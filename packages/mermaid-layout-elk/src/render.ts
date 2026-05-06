@@ -58,7 +58,7 @@ interface ElkSubgraphConfig {
 export function buildSubgraphLayoutOptions(
   node: { dir?: string },
   elkConfig: ElkSubgraphConfig | undefined,
-  algorithm: string
+  algorithm: string | undefined
 ): Record<string, unknown> {
   const layoutOptions: Record<string, unknown> = {
     'spacing.baseValue': 30,
