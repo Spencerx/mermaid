@@ -1,0 +1,154 @@
+import type { Graph, Layering, NodeId } from './helpers.js';
+import { topoSortIfAcyclic, normalizeGraph } from './phase0.helpers.js';
+import type { LayeringOptions } from './phase2.options.js';
+import { buildTopLaneMap } from './phase2.options.js';
+import { LAYERING } from './config.js';
+import { assignLayers_LongestPath } from './phase2.longestPath.js';
+
+// cspell:ignore acyclicity preds succs
+
+/**
+ * Gravity-based layering algorithm that minimizes edge lengths while maintaining acyclicity.
+ */
+export function assignLayers_Gravity(gAcyclic: Graph, opts?: LayeringOptions): Layering {
+  const g = normalizeGraph(gAcyclic);
+  // Initial ranks from longest path (gives feasible lower bounds)
+  const base = assignLayers_LongestPath(g, {
+    compactSingleInput: opts?.compactSingleInput,
+    ignoreCrossLaneEdges: opts?.ignoreCrossLaneEdges,
+    optimizeRanksByCrossings: opts?.optimizeRanksByCrossings,
+  });
+  const rankOf: Record<NodeId, number> = { ...base.rankOf } as any;
+
+  const topLaneMap = buildTopLaneMap(g);
+  const topLaneOf = (id: NodeId): string | null => topLaneMap.get(id) ?? null;
+
+  // Precompute predecessors and successors
+  const preds = new Map<NodeId, NodeId[]>();
+  const succs = new Map<NodeId, NodeId[]>();
+  for (const v of g.nodes) {
+    preds.set(v, []);
+    succs.set(v, []);
+  }
+  for (const e of g.edges) {
+    if (opts?.ignoreCrossLaneEdges) {
+      const laneSrc = topLaneOf(e.src);
+      const laneDst = topLaneOf(e.dst);
+      if (laneSrc && laneDst && laneSrc !== laneDst) {
+        continue;
+      }
+    }
+    succs.get(e.src)!.push(e.dst);
+    preds.get(e.dst)!.push(e.src);
+  }
+
+  const order = topoSortIfAcyclic(g) ?? [...g.nodes];
+  const revOrder = [...order].reverse();
+
+  const clampFeasible = (v: NodeId, desired: number): number => {
+    // Lower bound from predecessors: max(rank[u] + 1)
+    let lb = 0;
+    for (const u of preds.get(v) ?? []) {
+      lb = Math.max(lb, (rankOf[u] ?? 0) + 1);
+    }
+    // Upper bound from successors: min(rank[w] - 1)
+    let ub = Number.POSITIVE_INFINITY;
+    const s = succs.get(v) ?? [];
+    if (s.length > 0) {
+      ub = Math.min(...s.map((w) => (rankOf[w] ?? 0) - 1));
+    }
+    if (!Number.isFinite(ub)) {
+      ub = Math.max(lb, desired);
+    }
+    return Math.min(Math.max(desired, lb), ub);
+  };
+
+  // Iterative relaxation
+  const iters = LAYERING.GRAVITY_ITERATIONS;
+  for (let it = 0; it < iters; it++) {
+    let changed = false;
+    // forward pass
+    for (const v of order) {
+      const ps = preds.get(v) ?? [];
+      const ss = succs.get(v) ?? [];
+      if (ps.length === 0 && ss.length === 0) {
+        continue;
+      }
+      const predAvg =
+        ps.length > 0
+          ? ps.reduce((a, u) => a + (rankOf[u] ?? 0) + 1, 0) / ps.length
+          : (rankOf[v] ?? 0);
+      const succAvg =
+        ss.length > 0
+          ? ss.reduce((a, w) => a + (rankOf[w] ?? 0) - 1, 0) / ss.length
+          : (rankOf[v] ?? 0);
+      const desired = Math.round((predAvg + succAvg) / 2);
+      const clamped = clampFeasible(v, desired);
+      if (clamped !== rankOf[v]) {
+        rankOf[v] = clamped;
+        changed = true;
+      }
+    }
+    // backward pass helps propagate upper bounds
+    for (const v of revOrder) {
+      const ps = preds.get(v) ?? [];
+      const ss = succs.get(v) ?? [];
+      if (ps.length === 0 && ss.length === 0) {
+        continue;
+      }
+      const predAvg =
+        ps.length > 0
+          ? ps.reduce((a, u) => a + (rankOf[u] ?? 0) + 1, 0) / ps.length
+          : (rankOf[v] ?? 0);
+      const succAvg =
+        ss.length > 0
+          ? ss.reduce((a, w) => a + (rankOf[w] ?? 0) - 1, 0) / ss.length
+          : (rankOf[v] ?? 0);
+      const desired = Math.round((predAvg + succAvg) / 2);
+      const clamped = clampFeasible(v, desired);
+      if (clamped !== rankOf[v]) {
+        rankOf[v] = clamped;
+        changed = true;
+      }
+    }
+    if (!changed) {
+      break;
+    }
+  }
+
+  // Final feasibility fix-ups (ensure r(v) >= r(u)+1)
+  for (const v of order) {
+    let lb = 0;
+    for (const u of preds.get(v) ?? []) {
+      lb = Math.max(lb, (rankOf[u] ?? 0) + 1);
+    }
+    if ((rankOf[v] ?? 0) < lb) {
+      rankOf[v] = lb;
+    }
+  }
+  for (const v of revOrder) {
+    const s = succs.get(v) ?? [];
+    if (s.length > 0) {
+      const ub = Math.min(...s.map((w) => (rankOf[w] ?? 0) - 1));
+      if ((rankOf[v] ?? 0) > ub) {
+        rankOf[v] = ub;
+      }
+    }
+  }
+
+  // Build layers
+  let maxRank = 0;
+  for (const v of g.nodes) {
+    maxRank = Math.max(maxRank, rankOf[v] ?? 0);
+  }
+  const layers: NodeId[][] = Array.from({ length: maxRank + 1 }, () => []);
+  for (const v of order) {
+    const r = Math.max(0, rankOf[v] ?? 0);
+    if (!layers[r]) {
+      layers[r] = [];
+    }
+    layers[r].push(v);
+  }
+
+  return { layers, rankOf, dummy: new Set<NodeId>() };
+}

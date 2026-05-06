@@ -95,6 +95,11 @@ export interface MermaidConfig {
    */
   handDrawnSeed?: number;
   /**
+   * Defines edge label as node.
+   *
+   */
+  isLabelNode?: boolean;
+  /**
    * Defines which layout algorithm to use for rendering the diagram.
    *
    */
@@ -323,6 +328,16 @@ export interface FlowchartDiagramConfig extends BaseDiagramConfig {
     | 'stepAfter'
     | 'stepBefore'
     | 'rounded';
+  /**
+   * Renders edge crossings as small arcs ("hops") or visible gaps so that
+   * overlapping edges are easier to read. Set to `false` to disable.
+   *
+   * Currently applied by the modern flowchart layout pipelines
+   * (ipsecCola, hola, swimlanes). Edges rendered as curves are skipped
+   * to avoid corrupting the geometry.
+   *
+   */
+  lineHops?: boolean | ('arc' | 'gap');
   /**
    * Represents the padding between the labels and the shape
    *

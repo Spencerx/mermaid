@@ -14,7 +14,15 @@ export const getClasses = function (
   return diagramObj.db.getClasses();
 };
 
-export const draw = async function (text: string, id: string, _version: string, diag: any) {
+export const draw = async function (
+  text: string,
+  id: string,
+  _version: string,
+  diag: any,
+  positions: any
+) {
+  const BUILD_NUMBER = 4;
+  log.info(`🔨 Flowchart Build #${BUILD_NUMBER}`);
   log.info('REF0:');
   log.info('Drawing state diagram (v2)', id);
   const { securityLevel, flowchart: conf, layout } = getConfig();
@@ -45,7 +53,7 @@ export const draw = async function (text: string, id: string, _version: string, 
 
   data4Layout.diagramId = id;
   log.debug('REF1:', data4Layout);
-  await render(data4Layout, svg);
+  await render(data4Layout, svg, positions);
   const padding = data4Layout.config.flowchart?.diagramPadding ?? 8;
   utils.insertTitle(
     svg,

@@ -169,6 +169,27 @@ export default tseslint.config(
     },
   },
   {
+    // Ported layout-algorithm code (swimlanes / ddlt / ipsecCola / layout-utils)
+    // and its supporting helpers were authored against a sibling repo's lint
+    // baseline. Loosen project-strict rules here so we can iterate without
+    // mass-rewriting the algorithms; treat as "draft, internal" code.
+    files: [
+      'packages/mermaid/src/rendering-util/layout-algorithms/swimlanes/**',
+      'packages/mermaid/src/rendering-util/layout-algorithms/ddlt/**',
+      'packages/mermaid/src/rendering-util/layout-algorithms/ipsecCola/**',
+      'packages/mermaid/src/rendering-util/layout-algorithms/layout-utils/**',
+      'packages/mermaid/src/rendering-util/rendering-elements/lineJump*.ts',
+      'packages/mermaid/src/rendering-util/createGraph.ts',
+      'packages/mermaid/src/rendering-util/cloneLayoutDataForMeasure.ts',
+    ],
+    rules: {
+      'no-console': 'off',
+      curly: 'off',
+      'unicorn/no-lonely-if': 'off',
+      '@typescript-eslint/require-await': 'off',
+    },
+  },
+  {
     files: ['**/*.{js,jsx,mjs,cjs}'],
     rules: {
       'jsdoc/check-indentation': 'off',

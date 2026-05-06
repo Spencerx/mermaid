@@ -99,6 +99,12 @@ properties:
       Defines the seed to be used when using handDrawn look. This is important for the automated tests as they will always find differences without the seed. The default value is 0 which gives a random seed.
     type: number
     default: 0
+  isLabelNode:
+    description: |
+      Defines edge label as node.
+    type: boolean
+    default: false
+
   layout:
     description: |
       Defines which layout algorithm to use for rendering the diagram.
@@ -2195,6 +2201,21 @@ $defs: # JSON Schema definition (maybe we should move these to a separate file)
             'rounded',
           ]
         default: 'basis'
+
+      lineHops:
+        description: |
+          Renders edge crossings as small arcs ("hops") or visible gaps so that
+          overlapping edges are easier to read. Set to `false` to disable.
+
+          Currently applied by the modern flowchart layout pipelines
+          (ipsecCola, hola, swimlanes). Edges rendered as curves are skipped
+          to avoid corrupting the geometry.
+        oneOf:
+          - type: boolean
+          - type: string
+            enum: ['arc', 'gap']
+        default: 'arc'
+
       padding:
         description: |
           Represents the padding between the labels and the shape

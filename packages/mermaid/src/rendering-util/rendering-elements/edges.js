@@ -148,6 +148,7 @@ export const insertEdgeLabel = async (elem, edge) => {
     setTerminalWidth(fo, edge.startLabelLeft);
   }
   if (edge.startLabelRight) {
+    // Create the actual text element
     const startEdgeLabelRight = elem.insert('g').attr('class', 'edgeTerminals');
     const inner = startEdgeLabelRight.insert('g').attr('class', 'inner');
     const startLabelElement = await createLabel(
@@ -158,6 +159,7 @@ export const insertEdgeLabel = async (elem, edge) => {
       false
     );
     fo = startLabelElement;
+    inner.node().appendChild(startLabelElement);
     let slBox = startLabelElement.getBBox();
     if (useHtmlLabels) {
       const div = startLabelElement.children[0];
@@ -175,6 +177,7 @@ export const insertEdgeLabel = async (elem, edge) => {
     setTerminalWidth(fo, edge.startLabelRight);
   }
   if (edge.endLabelLeft) {
+    // Create the actual text element
     const endEdgeLabelLeft = elem.insert('g').attr('class', 'edgeTerminals');
     const inner = endEdgeLabelLeft.insert('g').attr('class', 'inner');
     const endLabelElement = await createLabel(
@@ -195,6 +198,8 @@ export const insertEdgeLabel = async (elem, edge) => {
     }
     inner.attr('transform', computeLabelTransform(slBox, useHtmlLabels));
 
+    endEdgeLabelLeft.node().appendChild(endLabelElement);
+
     if (!terminalLabels.get(edge.id)) {
       terminalLabels.set(edge.id, {});
     }
@@ -202,8 +207,10 @@ export const insertEdgeLabel = async (elem, edge) => {
     setTerminalWidth(fo, edge.endLabelLeft);
   }
   if (edge.endLabelRight) {
+    // Create the actual text element
     const endEdgeLabelRight = elem.insert('g').attr('class', 'edgeTerminals');
     const inner = endEdgeLabelRight.insert('g').attr('class', 'inner');
+
     const endLabelElement = await createLabel(
       inner,
       edge.endLabelRight,
@@ -222,6 +229,7 @@ export const insertEdgeLabel = async (elem, edge) => {
     }
     inner.attr('transform', computeLabelTransform(slBox, useHtmlLabels));
 
+    endEdgeLabelRight.node().appendChild(endLabelElement);
     if (!terminalLabels.get(edge.id)) {
       terminalLabels.set(edge.id, {});
     }
@@ -320,6 +328,30 @@ export const positionEdgeLabel = (edge, paths) => {
     }
     el.attr('transform', `translate(${x}, ${y})`);
   }
+};
+
+export const orthogonalizeToLabelClippedPoints = (edge, points) => {
+  if (!edge?.isLabelEdge || !edge?.id?.endsWith('-to-label') || !Array.isArray(points)) {
+    return points;
+  }
+
+  if (points.length !== 2) {
+    return points;
+  }
+
+  const [start, end] = points;
+  const dx = Math.abs(end.x - start.x);
+  const dy = Math.abs(end.y - start.y);
+
+  if (dx < 1e-3 || dy < 1e-3) {
+    return points;
+  }
+
+  if (dy >= dx) {
+    return [start, { x: start.x, y: end.y }, end];
+  }
+
+  return [start, { x: end.x, y: start.y }, end];
 };
 
 const outsideNode = (node, point) => {
@@ -537,6 +569,7 @@ const generateDashArray = (len, oValueS, oValueE) => {
 
   return dashArray;
 };
+
 export const insertEdge = function (
   elem,
   edge,
@@ -545,7 +578,7 @@ export const insertEdge = function (
   startNode,
   endNode,
   diagramId,
-  skipIntersect = false
+  _skipIntersect = false
 ) {
   if (!diagramId) {
     throw new Error(
@@ -565,21 +598,45 @@ export const insertEdge = function (
     edgeClassStyles.push(edge.cssCompiledStyles[key]);
   }
 
-  log.debug('UIO intersect check', edge.points, head.x, tail.x);
-  if (head.intersect && tail.intersect && !skipIntersect) {
-    points = points.slice(1, edge.points.length - 1);
-    points.unshift(tail.intersect(points[0]));
-    log.debug(
-      'Last point UIO',
-      edge.start,
-      '-->',
-      edge.end,
-      points[points.length - 1],
-      head,
-      head.intersect(points[points.length - 1])
-    );
-    points.push(head.intersect(points[points.length - 1]));
+  if (head.intersect && tail.intersect && Array.isArray(points) && points.length >= 2) {
+    if (points.length === 2) {
+      // Simple straight edge: just clip the two endpoints to the node boundaries.
+      points = [tail.intersect(points[0]), head.intersect(points[1])];
+    } else {
+      // For multi-segment paths, keep the inner bend points and just adjust the entry/exit
+      // segments near the nodes.
+      const innerPoints = points.slice(1, -1);
+      const firstInner = innerPoints[0];
+      const lastInner = innerPoints[innerPoints.length - 1];
+
+      let newFirst = tail.intersect(firstInner);
+      let newLast = head.intersect(lastInner);
+
+      // Handle duplicate points at boundaries.
+      // When the intersection returns approximately the same point as the inner point,
+      // it means the inner point is already at the boundary. In this case:
+      // - Skip adding the duplicate to avoid zero-length final segments
+      // - This applies to ALL curve types
+      const TOLERANCE = 0.5;
+
+      // Check if newLast is duplicate of lastInner
+      const lastIsDuplicate =
+        Math.abs(newLast.x - lastInner.x) < TOLERANCE &&
+        Math.abs(newLast.y - lastInner.y) < TOLERANCE;
+
+      // Check if newFirst is duplicate of firstInner
+      const firstIsDuplicate =
+        Math.abs(newFirst.x - firstInner.x) < TOLERANCE &&
+        Math.abs(newFirst.y - firstInner.y) < TOLERANCE;
+
+      // Build points array, skipping duplicates
+      const startPoints = firstIsDuplicate ? [] : [newFirst];
+      const endPoints = lastIsDuplicate ? [] : [newLast];
+
+      points = [...startPoints, ...innerPoints, ...endPoints];
+    }
   }
+  points = orthogonalizeToLabelClippedPoints(edge, points);
   const pointsStr = btoa(JSON.stringify(points));
   if (edge.toCluster) {
     log.info('to cluster abc88', clusterDb.get(edge.toCluster));
@@ -690,6 +747,7 @@ export const insertEdge = function (
   const edgeStyles = Array.isArray(edge.style) ? edge.style : [edge.style];
   let strokeColor = edgeStyles.find((style) => style?.startsWith('stroke:'));
 
+  const libavoidAccepted = edge.__libavoidAccepted === true;
   let animationClass = '';
   if (edge.animate) {
     animationClass = 'edge-animation-fast';
@@ -718,9 +776,16 @@ export const insertEdge = function (
         ' ' +
           strokeClasses +
           (edge.classes ? ' ' + edge.classes : '') +
+          (libavoidAccepted ? ' libavoid-accepted-edge' : '') +
           (animationClass ? ' ' + animationClass : '')
       )
-      .attr('style', edgeStyles ? edgeStyles.reduce((acc, style) => acc + ';' + style, '') : '');
+      .attr(
+        'style',
+        (edgeStyles ? edgeStyles.reduce((acc, style) => acc + ';' + style, '') : '') +
+          (libavoidAccepted
+            ? ';stroke:#ff006e;stroke-width:4px;filter:drop-shadow(0 0 3px rgba(255,0,110,0.7));'
+            : '')
+      );
     let d = svgPath.attr('d');
     svgPath.attr('d', d);
     elem.node().appendChild(svgPath.node());
@@ -741,9 +806,16 @@ export const insertEdge = function (
         ' ' +
           strokeClasses +
           (edge.classes ? ' ' + edge.classes : '') +
+          (libavoidAccepted ? ' libavoid-accepted-edge' : '') +
           (animationClass ? ' ' + animationClass : '')
       )
-      .attr('style', pathStyle);
+      .attr(
+        'style',
+        pathStyle +
+          (libavoidAccepted
+            ? ';stroke:#ff006e;stroke-width:4px;filter:drop-shadow(0 0 3px rgba(255,0,110,0.7));'
+            : '')
+      );
 
     //eslint-disable-next-line @typescript-eslint/prefer-regexp-exec
     strokeColor = pathStyle.match(/stroke:([^;]+)/)?.[1];
@@ -772,6 +844,7 @@ export const insertEdge = function (
 
   // MC Special
   svgPath.attr('data-edge', true);
+  svgPath.attr('data-libavoid-accepted', libavoidAccepted ? 'true' : 'false');
   svgPath.attr('data-et', 'edge');
   svgPath.attr('data-id', edge.id);
   svgPath.attr('data-points', pointsStr);
@@ -798,6 +871,15 @@ export const insertEdge = function (
         .attr('cy', point.y);
     });
   }
+  // lineData.forEach((point) => {
+  //   elem
+  //     .append('circle')
+  //     .style('stroke', 'red')
+  //     .style('fill', 'red')
+  //     .attr('r', 1)
+  //     .attr('cx', point.x)
+  //     .attr('cy', point.y);
+  // });
 
   let url = '';
   if (getConfig().flowchart.arrowMarkerAbsolute || getConfig().state.arrowMarkerAbsolute) {
@@ -834,7 +916,7 @@ export const insertEdge = function (
  * @param {Number} radius - The radius of the rounded corners
  * @returns {String} - SVG path data string
  */
-function generateRoundedPath(points, radius) {
+export function generateRoundedPath(points, radius) {
   if (points.length < 2) {
     return '';
   }
@@ -919,7 +1001,7 @@ function calculateDeltaAndAngle(point1, point2) {
 }
 
 // Function to adjust the first and last points of the points array
-function applyMarkerOffsetsToPoints(points, edge) {
+export function applyMarkerOffsetsToPoints(points, edge) {
   // Copy the points array to avoid mutating the original data
   const newPoints = points.map((point) => ({ ...point }));
 

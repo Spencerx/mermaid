@@ -8,6 +8,7 @@ ARROWHEADSTYLE
 ARROWTYPE
 autonumber
 axisl-line
+bary
 Bigdecimal
 birel
 BIREL
@@ -33,6 +34,9 @@ CYLINDEREND
 CYLINDERSTART
 DAGA
 datakey
+ddlt
+Ddlt
+DDLT
 DEND
 descr
 distp
@@ -94,6 +98,8 @@ NSTR
 outdir
 Qcontrolx
 QSTR
+raykov
+Raykov
 readmodel
 reinit
 rels
@@ -106,6 +112,7 @@ roughjs
 sankey
 sequencenumber
 shrc
+Siebenhaller
 signaltype
 someclass
 SPACELINE
@@ -148,6 +155,7 @@ ts-nocheck
 tsdoc
 typeof
 typestr
+unrouted
 unshift
 urlsafe
 verifymethod

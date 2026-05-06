@@ -2,7 +2,9 @@ import { createText } from '../../createText.js';
 import type { Node } from '../../types.js';
 import { getConfig } from '../../../diagram-api/diagramAPI.js';
 import { evaluate, getEffectiveHtmlLabels } from '../../../config.js';
+import { computeLabelTransform } from '../../labelTransform.js';
 import { select } from 'd3';
+import { log } from '../../../logger.js';
 import { sanitizeText } from '../../../diagrams/common/common.js';
 import { decodeEntities, handleUndefinedAttr } from '../../../utils.js';
 import type { D3Selection, Point } from '../../../types.js';
@@ -43,6 +45,7 @@ export const labelHelper = async <T extends SVGGraphicsElement>(
 
   const addBackground = !!node.icon || !!node.img;
   const isMarkdown = node.labelType === 'markdown';
+  const isMindmapNode = (node.cssClasses ?? '').includes('mindmap-node');
   const text = await createText(
     labelEl,
     sanitizeText(decodeEntities(label), getConfig()),
@@ -53,6 +56,7 @@ export const labelHelper = async <T extends SVGGraphicsElement>(
       style: node.labelStyle,
       addSvgBackground: addBackground,
       markdown: isMarkdown,
+      overflowWrap: isMindmapNode ? 'anywhere' : 'break-word',
     },
     getConfig()
   );
@@ -70,18 +74,16 @@ export const labelHelper = async <T extends SVGGraphicsElement>(
 
     bbox = div.getBoundingClientRect();
     dv.attr('width', bbox.width);
+    if (node.height && node.height < bbox.height) {
+      bbox.height = node.height < 0 ? 0 : node.height;
+    }
     dv.attr('height', bbox.height);
   }
 
-  // Center the label
-  if (useHtmlLabels) {
-    labelEl.attr('transform', 'translate(' + -bbox.width / 2 + ', ' + -bbox.height / 2 + ')');
-  } else {
-    labelEl.attr('transform', 'translate(' + 0 + ', ' + -bbox.height / 2 + ')');
-  }
-  if (node.centerLabel) {
-    labelEl.attr('transform', 'translate(' + -bbox.width / 2 + ', ' + -bbox.height / 2 + ')');
-  }
+  // Center the label — computeLabelTransform handles both HTML and SVG cases correctly:
+  // HTML: uses only width/height (viewport x/y from getBoundingClientRect are irrelevant)
+  // SVG: accounts for bbox.x/y offsets from getBBox() to properly center the text
+  labelEl.attr('transform', computeLabelTransform(bbox, useHtmlLabels));
   labelEl.insert('rect', ':first-child');
   return { shapeSvg, bbox, halfPadding, label: labelEl };
 };
@@ -146,6 +148,9 @@ export const updateNodeBounds = <T extends SVGGraphicsElement>(
   const bbox = element.node()!.getBBox();
   node.width = bbox.width;
   node.height = bbox.height;
+  log.debug('updateNodeBounds: #####################################');
+  log.debug('updateNodeBounds:', node.id, node.width, node.height);
+  log.debug('updateNodeBounds: #####################################');
 };
 
 /**

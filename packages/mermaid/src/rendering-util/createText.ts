@@ -305,9 +305,11 @@ export const createText = async (
      */
     width = 200,
     addSvgBackground = false,
+    overflowWrap = 'break-word' as 'break-word' | 'anywhere',
   } = {},
   config?: MermaidConfig
 ) => {
+  void overflowWrap;
   log.debug(
     'XYZ createText',
     text,
