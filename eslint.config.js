@@ -156,9 +156,16 @@ export default tseslint.config(
     },
   },
   {
-    files: ['cypress/**', 'demos/**'],
+    files: ['cypress/**', 'demos/**', '.esbuild/**'],
     rules: {
       'no-console': 'off',
+      // Dev tooling files often use lower-friction style (single-line ifs,
+      // type aliases over interfaces). Loosen the strict project rules here.
+      curly: 'off',
+      'prefer-const': 'warn',
+      '@typescript-eslint/consistent-type-definitions': 'off',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
+      'unicorn/no-lonely-if': 'off',
     },
   },
   {

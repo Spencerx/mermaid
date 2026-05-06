@@ -40,6 +40,7 @@ distq
 divs
 docref
 DOMID
+domus
 doublecircle
 DOUBLECIRCLEEND
 DOUBLECIRCLESTART
@@ -79,6 +80,8 @@ LINETYPE
 LINKSTYLE
 LLABEL
 loglevel
+logline
+logmeta
 LOGMSG
 lookaheads
 mdast
@@ -150,6 +153,8 @@ urlsafe
 verifymethod
 VERIFYMTHD
 WARN_DOCSDIR_DOESNT_MATCH
+worktree
+worktrees
 xhost
 yaxis
 yfunc
