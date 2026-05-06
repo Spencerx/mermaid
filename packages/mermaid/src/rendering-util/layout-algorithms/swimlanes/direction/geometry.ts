@@ -5,17 +5,76 @@ interface Point {
   y: number;
 }
 
+interface SimplifyPassResult {
+  points: Point[];
+  changed: boolean;
+}
+
+function samePoint(a: Point, b: Point): boolean {
+  return Math.abs(a.x - b.x) < EPS && Math.abs(a.y - b.y) < EPS;
+}
+
+function sameX(a: Point, b: Point): boolean {
+  return Math.abs(a.x - b.x) < EPS;
+}
+
+function sameY(a: Point, b: Point): boolean {
+  return Math.abs(a.y - b.y) < EPS;
+}
+
+function strictlyBetween(value: number, a: number, b: number): boolean {
+  const lo = Math.min(a, b);
+  const hi = Math.max(a, b);
+  return value > lo + EPS && value < hi - EPS;
+}
+
+function isCollinearIntermediate(prev: Point, cur: Point, next: Point): boolean {
+  if (sameX(prev, cur) && sameX(cur, next)) {
+    return strictlyBetween(cur.y, prev.y, next.y);
+  }
+
+  if (sameY(prev, cur) && sameY(cur, next)) {
+    return strictlyBetween(cur.x, prev.x, next.x);
+  }
+
+  return false;
+}
+
+function simplifyPolylineOnce(points: Point[]): SimplifyPassResult {
+  let changed = false;
+  const out: Point[] = [];
+
+  for (let i = 0; i < points.length; i++) {
+    const prev = out[out.length - 1];
+    const cur = points[i];
+    const next = i + 1 < points.length ? points[i + 1] : undefined;
+    if (prev && next) {
+      if (samePoint(prev, next)) {
+        i++;
+        changed = true;
+        continue;
+      }
+
+      if (isCollinearIntermediate(prev, cur, next)) {
+        changed = true;
+        continue;
+      }
+    }
+    out.push(cur);
+  }
+
+  return { points: out, changed };
+}
+
 // Inserts orthogonal L-bends and removes consecutive duplicate points.
 export function orthogonalizePolyline(pts: Point[]): Point[] {
   const cleaned: Point[] = [pts[0]];
   for (let i = 1; i < pts.length; i++) {
     const prev = cleaned[cleaned.length - 1];
     const curr = pts[i];
-    const sameX = Math.abs(prev.x - curr.x) < EPS;
-    const sameY = Math.abs(prev.y - curr.y) < EPS;
-    if (!sameX && !sameY) {
+    if (!sameX(prev, curr) && !sameY(prev, curr)) {
       const prevPrev = cleaned.length >= 2 ? cleaned[cleaned.length - 2] : undefined;
-      const incomingVertical = prevPrev ? Math.abs(prevPrev.x - prev.x) < EPS : false;
+      const incomingVertical = prevPrev ? sameX(prevPrev, prev) : false;
       const corner = incomingVertical ? { x: prev.x, y: curr.y } : { x: curr.x, y: prev.y };
       cleaned.push(corner);
     }
@@ -24,7 +83,7 @@ export function orthogonalizePolyline(pts: Point[]): Point[] {
   const deduped: Point[] = [];
   for (const p of cleaned) {
     const last = deduped[deduped.length - 1];
-    if (!last || Math.abs(last.x - p.x) > EPS || Math.abs(last.y - p.y) > EPS) {
+    if (!last || !samePoint(last, p)) {
       deduped.push(p);
     }
   }
@@ -37,41 +96,9 @@ export function simplifyPolyline(pts: Point[]): Point[] {
   }
   let work = [...pts];
   for (let guard = 0; guard < 32; guard++) {
-    let changed = false;
-    const out: Point[] = [];
-    for (let i = 0; i < work.length; i++) {
-      const prev = out[out.length - 1];
-      const cur = work[i];
-      const next = i + 1 < work.length ? work[i + 1] : undefined;
-      if (prev && next) {
-        if (Math.abs(prev.x - next.x) < EPS && Math.abs(prev.y - next.y) < EPS) {
-          i++;
-          changed = true;
-          continue;
-        }
-
-        const sameAxisX = Math.abs(prev.x - cur.x) < EPS && Math.abs(cur.x - next.x) < EPS;
-        const sameAxisY = Math.abs(prev.y - cur.y) < EPS && Math.abs(cur.y - next.y) < EPS;
-        if (sameAxisX) {
-          const lo = Math.min(prev.y, next.y);
-          const hi = Math.max(prev.y, next.y);
-          if (cur.y > lo + EPS && cur.y < hi - EPS) {
-            changed = true;
-            continue;
-          }
-        } else if (sameAxisY) {
-          const lo = Math.min(prev.x, next.x);
-          const hi = Math.max(prev.x, next.x);
-          if (cur.x > lo + EPS && cur.x < hi - EPS) {
-            changed = true;
-            continue;
-          }
-        }
-      }
-      out.push(cur);
-    }
-    work = out;
-    if (!changed) {
+    const result = simplifyPolylineOnce(work);
+    work = result.points;
+    if (!result.changed) {
       break;
     }
   }
