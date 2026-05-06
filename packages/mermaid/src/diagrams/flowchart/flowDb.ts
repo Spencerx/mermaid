@@ -700,6 +700,11 @@ You have to call mermaid.initialize.`
     const result = uniq(list.flat());
     const nodeList = result.nodeList;
     let dir = result.dir;
+    // Normalize TD ("top-down" alias) to the canonical TB ("top-bottom") that dagre expects,
+    // mirroring the same normalisation in setDirection() for the top-level graph direction.
+    if (dir === 'TD') {
+      dir = 'TB';
+    }
     const flowchartConfig = getConfig().flowchart ?? {};
     dir =
       dir ??

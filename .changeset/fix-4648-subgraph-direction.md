@@ -18,7 +18,7 @@ direction.
   Subgraphs with external edges always inherited the parent direction.
 - **New:** A separate cluster graph is created only when the user has
   explicitly set a `direction` keyword on the subgraph
-  (`clusterData?.dir && hasChildren`). Subgraphs without an explicit
+  (`clusterData?.explicitDir && hasChildren`). Subgraphs without an explicit
   `direction` now inherit the parent `rankdir` (previously they defaulted to
   the opposite of the parent direction).
 

@@ -407,15 +407,15 @@ flowchart TB
         end
         C1 --> b   (external connection)
       */
-      g.setNode('a', { data: 1, dir: 'LR' });
+      g.setNode('a', { data: 1 });
       g.setNode('b', { data: 2 });
-      g.setNode('C1', { data: 3, dir: 'LR' });
+      g.setNode('C1', { data: 3, dir: 'LR', explicitDir: true });
       g.setParent('a', 'C1');
       g.setEdge('C1', 'b', { data: 'link1' }, '1');
 
       adjustClustersAndEdges(g);
 
-      // C1 should have been extracted into a clusterNode
+      // C1 should have been extracted into a clusterNode via Branch 1 (explicitDir)
       expect(g.node('C1').clusterNode).toBe(true);
       // The internal child 'a' should be in the clusterGraph, not in the outer graph
       const C1Graph = g.node('C1').graph;
@@ -433,7 +433,7 @@ flowchart TB
       */
       g.setNode('a', { data: 1 });
       g.setNode('b', { data: 2 });
-      g.setNode('C1', { data: 3, dir: 'LR' });
+      g.setNode('C1', { data: 3, dir: 'LR', explicitDir: true });
       g.setParent('a', 'C1');
       g.setParent('b', 'C1');
       g.setEdge('a', 'b', { data: 'internal' }, '1');
@@ -459,8 +459,8 @@ flowchart TB
       */
       g.setNode('i1', { data: 1 });
       g.setNode('i2', { data: 2 });
-      g.setNode('B1', { data: 3, dir: 'RL' });
-      g.setNode('B2', { data: 4, dir: 'BT' });
+      g.setNode('B1', { data: 3, dir: 'RL', explicitDir: true });
+      g.setNode('B2', { data: 4, dir: 'BT', explicitDir: true });
       g.setParent('i1', 'B1');
       g.setParent('i2', 'B2');
       g.setEdge('B1', 'B2', { data: 'sibling-link' }, '1');
@@ -471,6 +471,35 @@ flowchart TB
       expect(g.node('B2').clusterNode).toBe(true);
       expect(g.node('B1').graph.nodes()).toEqual(['i1']);
       expect(g.node('B2').graph.nodes()).toEqual(['i2']);
+    });
+
+    it('GLB-DIR4: cross-boundary edge should be rebound in outer graph, not copied into clusterGraph', function () {
+      /*
+        subgraph C2 [direction LR]  ← uses a fresh cluster id to avoid stale module state
+          D1
+        end
+        D1 --> D2   (cross-boundary: D1 is inside C2, D2 is outside)
+      */
+      g.setNode('D1', { data: 1 });
+      g.setNode('D2', { data: 2 });
+      g.setNode('C2', { data: 3, dir: 'LR', explicitDir: true });
+      g.setParent('D1', 'C2');
+      g.setEdge('D1', 'D2', { data: 'cross' }, 'cross1');
+
+      adjustClustersAndEdges(g);
+
+      // C2 should be a clusterNode (Branch 1 fired)
+      expect(g.node('C2').clusterNode).toBe(true);
+
+      // The clusterGraph should contain D1 but have NO edges
+      // (the cross-boundary edge must NOT be copied inside)
+      const C2Graph = g.node('C2').graph;
+      expect(C2Graph.nodes()).toContain('D1');
+      expect(C2Graph.edges().length).toBe(0);
+
+      // The outer graph should have a rebound edge from the cluster root (C2) to D2
+      const rebound = g.edges().some((e) => e.v === 'C2' && e.w === 'D2');
+      expect(rebound).toBe(true);
     });
   });
 });

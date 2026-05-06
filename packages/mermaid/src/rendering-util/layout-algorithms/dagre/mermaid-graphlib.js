@@ -354,9 +354,7 @@ export const extractor = (graph, depth) => {
       // even when it has external connections (fixes issue #4648).
       log.warn('Cluster with explicit dir, creating subgraph for children', node, depth);
 
-      const rawDir = clusterDb.get(node).clusterData.dir;
-      // Normalize TD (top-down alias) to the canonical TB (top-bottom) that dagre expects
-      const dir = rawDir === 'TD' ? 'TB' : rawDir;
+      const dir = clusterDb.get(node).clusterData.dir;
       const clusterGraph = new graphlib.Graph({
         multigraph: true,
         compound: true,
@@ -404,8 +402,7 @@ export const extractor = (graph, depth) => {
       const graphSettings = graph.graph();
       let dir = graphSettings.rankdir === 'TB' ? 'LR' : 'TB';
       if (clusterDb.get(node)?.clusterData?.dir) {
-        const rawDir = clusterDb.get(node).clusterData.dir;
-        dir = rawDir === 'TD' ? 'TB' : rawDir;
+        dir = clusterDb.get(node).clusterData.dir;
         log.warn('Fixing dir', clusterDb.get(node).clusterData.dir, dir);
       }
 
