@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-    isBoxDrawingFormat,
-    preprocessBoxDrawing,
-    remapErrorLines,
+  isBoxDrawingFormat,
+  preprocessBoxDrawing,
+  remapErrorLines,
 } from './boxDrawingPreprocessor.js';
 
 describe('boxDrawingPreprocessor', () => {
@@ -393,9 +393,7 @@ describe('boxDrawingPreprocessor', () => {
 
       it('should handle tab-indented box-drawing lines', () => {
         // Tab expands to 4 spaces, so `\t├──` puts the branch at column 4 → depth 2
-        const input = ['treeView-beta', '├── src/', '\t├── index.ts', '\t└── utils.ts'].join(
-          '\n'
-        );
+        const input = ['treeView-beta', '├── src/', '\t├── index.ts', '\t└── utils.ts'].join('\n');
         const { text } = preprocessBoxDrawing(input);
         const lines = text.split('\n');
         expect(lines[1]).toBe('    src/');
