@@ -165,7 +165,7 @@ describe('Swimlanes DDLT — 5-car-fun-sales-wide-tb.mmd', () => {
     // L_D_E_0's rewrite and leaving L_D_H_0 stranded on D.left as a
     // 4-point west U-detour around H — visually obvious as a bug.
     //
-    // Iter 12 fix: coRouteSiblingsOnSharedFace in direction.ts, a
+    // Iter 12 fix: straightenCollinearSiblingDetours, a
     // post-simplifyDetouredEdges pass that detects "V-H-V/H-V-H detour
     // around a collinear-blocker where the straight line is
     // geometrically clear" and rewrites to 2 points, port-shifting

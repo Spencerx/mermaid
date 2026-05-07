@@ -66,7 +66,7 @@ const SWIMLANE_DIR_LOG_PREFIX = 'SWIMLANE_DIR';
  *                                     contract (no spec's totalBends or
  *                                     crossings may increase).
  *
- * Distinct from `coRouteSiblingsOnSharedFace` (iter 12) which handles
+ * Distinct from `straightenCollinearSiblingDetours` (iter 12) which handles
  * the COLLINEAR case (4-point → 2-point straight). This pass handles
  * the non-collinear case (4-point → 3-point L). The two are disjoint
  * by the collinearX === collinearY guard: coRoute runs first and
@@ -84,7 +84,7 @@ export function portSwapToLShape(edges: any[], nodes: any[]): void {
   // Siebenhaller dissertation §6.1.2.2). When this pass places a second
   // edge on a face already occupied by a sibling centered at delta=0,
   // the canonical pairing is (0, ±δ_s) — full δ_s separation between
-  // port centers, not δ_s/2. `coRouteSiblingsOnSharedFace` uses δ_s/2
+  // port centers, not δ_s/2. `straightenCollinearSiblingDetours` uses δ_s/2
   // because that pass shifts BOTH members of a collinear pair
   // symmetrically (to ±δ_s/2, separation δ_s); this pass shifts only
   // the single edge being swapped, so it must move the full δ_s to
@@ -159,7 +159,7 @@ export function portSwapToLShape(edges: any[], nodes: any[]): void {
 
   // Axis-aligned segment-crossing detector (perpendicular crossings only,
   // T-intersections count), same semantics as scoreLayout.segmentsCross
-  // and as the helper embedded in `coRouteSiblingsOnSharedFace`.
+  // and as the helper embedded in `straightenCollinearSiblingDetours`.
   const segmentsCrossOrth = (
     a1: { x: number; y: number },
     b1: { x: number; y: number },
@@ -283,7 +283,7 @@ export function portSwapToLShape(edges: any[], nodes: any[]): void {
       continue;
     }
 
-    // Skip collinear src/dst — coRouteSiblingsOnSharedFace handles those.
+    // Skip collinear src/dst — straightenCollinearSiblingDetours handles those.
     const collinearX = Math.abs(srcInfo.cx - dstInfo.cx) < EPS;
     const collinearY = Math.abs(srcInfo.cy - dstInfo.cy) < EPS;
     if (collinearX || collinearY) {

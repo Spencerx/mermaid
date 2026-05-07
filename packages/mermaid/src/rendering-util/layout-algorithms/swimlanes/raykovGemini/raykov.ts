@@ -634,7 +634,7 @@ export function routeEdgesOrthogonal(data: LayoutData, direction?: string): Layo
   //
   // Sequencing note (critical, per Algorithm Expert review): this pass
   // MUST run before the port-group build (6.3), anchor computation
-  // (Step 7), and siblingLShapeAntiCrossing (direction.ts). Changing a
+  // (Step 7), and preventSiblingLShapeCrossings. Changing a
   // side later would corrupt E_{v,s} membership without updating
   // downstream sort keys.
   //

@@ -93,7 +93,7 @@ describe('Swimlanes DDLT — simple-2.mmd', () => {
     // correctly places OFF center on the east half of B.top (post-transform
     // at x ≈ -14.17). L_A_B_0's pre-transform V-H-V has its dst port
     // OFFSET west of B.cx (at x ≈ -27.95) to make room for L_E_B_0; iter
-    // 12's `coRouteSiblingsOnSharedFace` rescues this to a 2-point
+    // 12's `straightenCollinearSiblingDetours` rescues this to a 2-point
     // straight but originally only tried ±PORT_SHIFT (MIN_PORT_SPACING/2),
     // so it landed L_A_B_0 at x=-17.06 — 3.94 east of A.cx and only 2.89
     // units from L_E_B_0. Visually "A→B is not centered and very close to
@@ -109,7 +109,7 @@ describe('Swimlanes DDLT — simple-2.mmd', () => {
     // required, never an offset.
     //
     // Iter 15 fix prepends 0 to the deltas array in
-    // coRouteSiblingsOnSharedFace and extends the crossing check to
+    // straightenCollinearSiblingDetours and extends the crossing check to
     // reject 0-shift only when it would overlap another edge's segment
     // along a shared axis (preserving iter 12's 5-car L_D_H_0 fallback
     // behavior where L_D_E_0's centered-straight at D.cx rules out the
