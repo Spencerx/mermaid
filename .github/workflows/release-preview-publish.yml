@@ -5,6 +5,10 @@ on:
     branches:
       - 'release/**'
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   publish-preview:
     runs-on: ubuntu-latest
