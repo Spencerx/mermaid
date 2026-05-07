@@ -43,6 +43,8 @@ const getDefaultSelfLoopSide = (rankdir = 'TB') => {
   }
 };
 
+// Class diagrams also use dagre, but self-referential multiplicity labels rely on
+// the existing segmented self-loop rendering path for terminal label placement.
 const shouldMergeSelfLoopSegments = (diagramType) =>
   diagramType === 'flowchart' || diagramType === 'flowchart-v2' || diagramType === 'stateDiagram';
 
