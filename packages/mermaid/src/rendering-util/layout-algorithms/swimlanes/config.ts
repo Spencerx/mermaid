@@ -97,31 +97,3 @@ export const PATHFINDING = {
   /** Penalty for direction changes (bends) in orthogonal routing */
   BEND_PENALTY_FACTOR: 0.25,
 } as const;
-
-/**
- * Helper function to get epsilon value for comparisons
- */
-export function getEpsilon(): number {
-  return PRECISION.EPSILON;
-}
-
-/**
- * Helper function to check if two numbers are approximately equal
- */
-export function approxEqual(a: number, b: number, epsilon = PRECISION.EPSILON): boolean {
-  return Math.abs(a - b) < epsilon;
-}
-
-/**
- * Helper function to format coordinate for use as a map key
- */
-export function coordKey(value: number, precision = PRECISION.COORD_PRECISION): string {
-  return value.toFixed(precision);
-}
-
-/**
- * Helper function to format coordinate for fine-grained keys
- */
-export function fineCoordKey(value: number): string {
-  return value.toFixed(PRECISION.FINE_COORD_PRECISION);
-}

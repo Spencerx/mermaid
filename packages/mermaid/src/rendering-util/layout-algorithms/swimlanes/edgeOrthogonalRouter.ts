@@ -8,7 +8,7 @@ const LANE_MARGIN = EDGE_ROUTING.LANE_MARGIN;
 /**
  * Orthogonal (Manhattan) edge router with lane/corridor awareness.
  *
- * Same signature as routeEdgesStraight: mutates and returns the provided LayoutData.
+ * Mutates and returns the provided LayoutData.
  *
  * Strategy:
  * - If edge.points already exists (from upstream layout), preserve it.
