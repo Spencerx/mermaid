@@ -96,9 +96,9 @@ const hexagon = async (parent, node) => {
   );
 
   const f = 4;
-  const h = bbox.height + node.padding;
+  const h = node.positioned ? node.height : bbox.height + node.padding;
   const m = h / f;
-  const w = bbox.width + 2 * m + node.padding;
+  const w = node.positioned ? node.width : bbox.width + 2 * m + node.padding;
   const points = [
     { x: m, y: 0 },
     { x: w - m, y: 0 },
@@ -125,9 +125,12 @@ const block_arrow = async (parent, node) => {
   const f = 2;
   const h = bbox.height + 2 * node.padding;
   const m = h / f;
-  const w = bbox.width + 2 * m + node.padding;
+  const naturalW = bbox.width + 2 * m + node.padding;
+  // Only use the layout-computed width when the block explicitly spans multiple columns
+  const isSpanning = node.positioned && (node.widthInColumns ?? 1) > 1 && node.width > naturalW;
+  const w = isSpanning ? node.width : naturalW;
 
-  const points = getArrowPoints(node.directions, bbox, node);
+  const points = getArrowPoints(node.directions, bbox, node, w);
 
   const blockArrow = insertPolygonShape(shapeSvg, w, h, points);
   blockArrow.attr('style', node.style);
@@ -586,7 +589,7 @@ const rectWithTitle = async (parent, node) => {
   }
   log.info('Label text abc79', title, text2, typeof text2 === 'object');
 
-  const text = label.node().appendChild(await createLabel(title, node.labelStyle, true, true));
+  const text = await createLabel(label, title, node.labelStyle, true, true);
   let bbox = { width: 0, height: 0 };
   if (getEffectiveHtmlLabels(getConfig())) {
     const div = text.children[0];
@@ -598,16 +601,13 @@ const rectWithTitle = async (parent, node) => {
   log.info('Text 2', text2);
   const textRows = text2.slice(1, text2.length);
   let titleBox = text.getBBox();
-  const descr = label
-    .node()
-    .appendChild(
-      await createLabel(
-        textRows.join ? textRows.join('<br/>') : textRows,
-        node.labelStyle,
-        true,
-        true
-      )
-    );
+  const descr = await createLabel(
+    label,
+    textRows.join ? textRows.join('<br/>') : textRows,
+    node.labelStyle,
+    true,
+    true
+  );
 
   if (getEffectiveHtmlLabels(getConfig())) {
     const div = descr.children[0];
@@ -913,9 +913,13 @@ const class_box = async (parent, node) => {
   const interfaceLabelText = node.classData.annotations[0]
     ? '«' + node.classData.annotations[0] + '»'
     : '';
-  const interfaceLabel = labelContainer
-    .node()
-    .appendChild(await createLabel(interfaceLabelText, node.labelStyle, true, true));
+  const interfaceLabel = await createLabel(
+    labelContainer,
+    interfaceLabelText,
+    node.labelStyle,
+    true,
+    true
+  );
   let interfaceBBox = interfaceLabel.getBBox();
   if (getEffectiveHtmlLabels(getConfig())) {
     const div = interfaceLabel.children[0];
@@ -938,9 +942,13 @@ const class_box = async (parent, node) => {
       classTitleString += '<' + node.classData.type + '>';
     }
   }
-  const classTitleLabel = labelContainer
-    .node()
-    .appendChild(await createLabel(classTitleString, node.labelStyle, true, true));
+  const classTitleLabel = await createLabel(
+    labelContainer,
+    classTitleString,
+    node.labelStyle,
+    true,
+    true
+  );
   select(classTitleLabel).attr('class', 'classTitle');
   let classTitleBBox = classTitleLabel.getBBox();
   if (getEffectiveHtmlLabels(getConfig())) {
@@ -961,16 +969,13 @@ const class_box = async (parent, node) => {
     if (getEffectiveHtmlLabels(getConfig())) {
       parsedText = parsedText.replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
-    const lbl = labelContainer
-      .node()
-      .appendChild(
-        await createLabel(
-          parsedText,
-          parsedInfo.cssStyle ? parsedInfo.cssStyle : node.labelStyle,
-          true,
-          true
-        )
-      );
+    const lbl = await createLabel(
+      labelContainer,
+      parsedText,
+      parsedInfo.cssStyle ? parsedInfo.cssStyle : node.labelStyle,
+      true,
+      true
+    );
     let bbox = lbl.getBBox();
     if (getEffectiveHtmlLabels(getConfig())) {
       const div = lbl.children[0];
@@ -995,16 +1000,13 @@ const class_box = async (parent, node) => {
     if (getEffectiveHtmlLabels(getConfig())) {
       displayText = displayText.replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
-    const lbl = labelContainer
-      .node()
-      .appendChild(
-        await createLabel(
-          displayText,
-          parsedInfo.cssStyle ? parsedInfo.cssStyle : node.labelStyle,
-          true,
-          true
-        )
-      );
+    const lbl = await createLabel(
+      labelContainer,
+      displayText,
+      parsedInfo.cssStyle ? parsedInfo.cssStyle : node.labelStyle,
+      true,
+      true
+    );
     let bbox = lbl.getBBox();
     if (getEffectiveHtmlLabels(getConfig())) {
       const div = lbl.children[0];

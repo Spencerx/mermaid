@@ -247,10 +247,17 @@ export const adjustClustersAndEdges = (graph, depth) => {
     if (parent !== id && clusterDb.has(parent) && !clusterDb.get(parent).externalConnections) {
       clusterDb.get(id).id = parent;
     }
+    // When this cluster has a direct outgoing edge AND its current anchor sits inside
+    // a sibling subgraph that will be extracted (collapsed into a clusterNode), the
+    // anchor will disappear by render time and the edge endpoint becomes undefined.
+    // Re-anchor onto a node that survives extraction.
     const hasDirectOutgoingEdge = graph.edges().some((edge) => edge.v === id);
-    if (nonClusterChild && clusterDb.get(id)?.externalConnections && hasDirectOutgoingEdge) {
-      // Check if the current anchor is invalid
-      isNodeInExtractableCluster(graph, nonClusterChild, id);
+    if (
+      nonClusterChild &&
+      clusterDb.get(id)?.externalConnections &&
+      hasDirectOutgoingEdge &&
+      isNodeInExtractableCluster(graph, nonClusterChild, id)
+    ) {
       const safeAnchor = findSafeAnchorNode(graph, id, graph.parent(nonClusterChild));
       if (safeAnchor) {
         clusterDb.get(id).id = safeAnchor;
@@ -445,8 +452,11 @@ const findSafeAnchorNode = (graph, clusterId, excludedCluster) => {
       continue;
     }
 
+    // findNonClusterChild returns the leaf itself when child is a leaf, or drills
+    // into a subgraph to find a non-cluster descendant. A returned leaf sibling is
+    // a perfectly valid anchor — only skip when the lookup found nothing usable.
     const candidate = findNonClusterChild(child, graph, clusterId);
-    if (!candidate || candidate === child) {
+    if (!candidate) {
       continue;
     }
 
