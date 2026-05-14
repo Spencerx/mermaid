@@ -237,6 +237,18 @@ describe('architecture diagrams', () => {
       await expect(parser.parse(str)).rejects.toThrow(/more than once/);
     });
 
+    it('should reject an align directive with fewer than two members at the DB level', () => {
+      // The langium grammar requires `(members+=ID)+` so the parser path already
+      // enforces ≥2 members. This guards the DB API for any non-grammar callers
+      // (programmatic construction, future renderers, etc.).
+      expect(() => db.addLayoutHint({ direction: 'row', members: [] })).toThrow(
+        /at least two members/
+      );
+      expect(() => db.addLayoutHint({ direction: 'column', members: ['only_one'] })).toThrow(
+        /at least two members/
+      );
+    });
+
     it('should not collide with services whose id starts with row or column', async () => {
       const str = `architecture-beta
   service rowspan(server)[Rowspan]

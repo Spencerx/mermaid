@@ -354,7 +354,7 @@ function getRelativeConstraints(
                 [ArchitectureDirectionName[
                   getOppositeArchitectureDirection(dir as ArchitectureDirection)
                 ]]: currId,
-                gap: 1.5 * db.getConfigField('iconSize'),
+                gap: idealMult * iconSize,
               });
             }
           });
@@ -572,7 +572,26 @@ function layoutArchitecture(
       cy.endBatch();
       withSeededRandom(seed, () => layout.run());
     });
-    withSeededRandom(seed, () => layout.run());
+    try {
+      withSeededRandom(seed, () => layout.run());
+    } catch (err) {
+      // fcose throws a raw `RangeError: Invalid array length` from inside
+      // FDLayout.calcGrid when the constraints it receives are unsatisfiable
+      // (e.g. an `align row|column` chain whose member order contradicts the
+      // edge directions, or two declared alignments that overlap on a node).
+      // Rethrow with actionable context so users don't have to chase the
+      // failure into fcose internals.
+      if (err instanceof RangeError && err.message.includes('Invalid array length')) {
+        throw new Error(
+          'Architecture layout failed: a declared `align row|column` directive ' +
+            'likely contradicts the edge directions, or two declared alignments ' +
+            'overlap on a shared node. Check that the order of members in each ' +
+            '`align` chain is consistent with the edges between them, and that ' +
+            'no node appears in two `align` directives along the same axis.'
+        );
+      }
+      throw err;
+    }
 
     cy.ready((e) => {
       log.info('Ready', e);
