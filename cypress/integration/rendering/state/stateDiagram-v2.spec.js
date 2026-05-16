@@ -506,6 +506,34 @@ stateDiagram-v2
     });
   });
 
+  for (const { look, nodeSelector } of [
+    { look: 'classic', nodeSelector: 'g.node' },
+    { look: 'handDrawn', nodeSelector: 'g.rough-node' },
+  ]) {
+    it(`v2 should render clickable state nodes with a tooltip title for ${look} look`, () => {
+      renderGraph(
+        `
+      stateDiagram-v2
+        A: Google
+        click A "https://google.com" "Visit Google"
+        `,
+        { look, securityLevel: 'loose', screenshot: false }
+      );
+
+      cy.get('svg a').should(($links) => {
+        const clickableLink = $links
+          .toArray()
+          .find((link) => link.getAttribute('xlink:href') === 'https://google.com');
+        expect(clickableLink, 'clickable state link').to.not.equal(undefined);
+        expect(clickableLink?.getAttribute('title')).to.equal('Visit Google');
+
+        const stateNode = clickableLink?.querySelector(`${nodeSelector}[title="Visit Google"]`);
+        expect(stateNode, 'clickable state node').to.not.equal(null);
+        expect(stateNode?.textContent).to.contain('Google');
+      });
+    });
+  }
+
   it('v2 should render a state diagram and set the correct length of the labels', () => {
     imgSnapshotTest(
       `

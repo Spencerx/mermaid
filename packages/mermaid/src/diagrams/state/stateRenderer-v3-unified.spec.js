@@ -19,12 +19,16 @@ vi.mock('../../diagram-api/diagramAPI.js', () => ({
 }));
 
 vi.mock('../../rendering-util/render.js', () => ({
-  render: vi.fn((_data, svg) => {
+  render: vi.fn((data, svg) => {
+    const layoutNode = data.nodes.find((node) => node.id === 'A') ?? data.nodes[0];
     const node = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     node.setAttribute('class', renderState.nodeClass);
+    node.setAttribute('id', layoutNode?.domId ?? 'state-A-0');
 
     const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    label.textContent = 'Google';
+    label.textContent = Array.isArray(layoutNode?.label)
+      ? layoutNode.label[0]
+      : (layoutNode?.label ?? 'Google');
     node.appendChild(label);
 
     svg.node().appendChild(node);
@@ -51,7 +55,8 @@ describe('stateRenderer v3 clickable links', () => {
       renderState.nodeClass = nodeClass;
 
       const stateDb = new StateDB(1);
-      stateDb.addLink('Google', '"https://google.com"', '"Visit Google"');
+      stateDb.setRootDoc([{ stmt: 'state', id: 'A', description: 'Google' }]);
+      stateDb.addLink('A', '"https://google.com"', '"Visit Google"');
 
       await draw('', DIAGRAM_ID, '1.0.0', {
         type: 'stateDiagram',
