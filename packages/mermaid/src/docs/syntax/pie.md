@@ -38,13 +38,16 @@ Drawing a pie chart is really simple in mermaid.
 .
 
 ## Donut chart diagram (v<MERMAID_RELEASE_VERSION>+)
+
 By setting `donutHole` parameter on config, Mermaid can render Donut Chart Diagram.
 
 ## Legend Position (v<MERMAID_RELEASE_VERSION>+)
+
 By setting `legendPosition` parameter on config, you can set where the legend is positioned.
 
 ## Highlight Slice (v<MERMAID_RELEASE_VERSION>+)
-By setting `donuhighlightSlicetHole` parameter on config, you can highlight specific slice. You can also highlight slice by hovering on it.
+
+By setting `highlightSlice` parameter on config, you can highlight specific slice. You can also highlight slice by hovering on it.
 
 ## Example
 
