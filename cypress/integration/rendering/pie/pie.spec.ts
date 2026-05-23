@@ -183,6 +183,9 @@ describe('pie chart', () => {
       `,
       { pie: { highlightSlice: 'hover' } }
     );
-    cy.get('.pieCircle').first().should('have.class', 'highlightedOnHover');
+
+    cy.get('.pieCircle').each(($pieCircle) => {
+      expect($pieCircle).to.has.class('highlightedOnHover');
+    });
   });
 });
