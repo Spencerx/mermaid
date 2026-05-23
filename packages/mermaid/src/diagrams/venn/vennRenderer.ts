@@ -382,13 +382,13 @@ function renderTextNodes(
  * This function returns a *new* array — the original `subsets` from the DB is never
  * mutated, so all parser/DB tests that assert on `getSubsetData()` continue to pass.
  *
-* The default size for pairwise intersections is chosen as 1/4 of the smaller
+ * The default size for pairwise intersections is chosen as 1/4 of the smaller
  individual set size. This ratio ensures the overlap is visually distinct but
  smaller than either contributing set, maintaining a balanced representation.
  When set sizes are unknown, a fallback of 2.5 (the parser's default for 2-set unions)
  is used.
  */
-function ensurePairwiseSubsets(subsets: VennData[]): VennData[] {
+export function ensurePairwiseSubsets(subsets: VennData[]): VennData[] {
   // Build a set of all existing subset keys (sorted, joined) for fast lookup.
   const existingKeys = new Set(subsets.map((s) => [...s.sets].sort().join('|')));
 

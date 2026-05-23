@@ -189,7 +189,7 @@ describe('vennRenderer', () => {
       ];
       const result = ensurePairwiseSubsets(subsets);
       expect(result).not.toBe(subsets);
-      expect(result).toHaveLength(6);
+      expect(result).toHaveLength(7);
       // Check that the three pairwise unions were added
       const pairs = result.filter((s) => s.sets.length === 2);
       expect(pairs).toHaveLength(3);
@@ -229,7 +229,7 @@ describe('vennRenderer', () => {
       ];
       const result = ensurePairwiseSubsets(subsets);
       expect(result).not.toBe(subsets);
-      expect(result).toHaveLength(6);
+      expect(result).toHaveLength(7);
       // Should add pairs A|B, A|C, B|C (sorted internally)
       const pairKeys = result
         .filter((s) => s.sets.length === 2)
