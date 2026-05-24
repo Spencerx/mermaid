@@ -30,14 +30,11 @@ describe('State diagram', () => {
       { securityLevel: 'loose', screenshot: false }
     );
 
-    cy.get('svg a').should(($links) => {
-      const clickableLink = $links
-        .toArray()
-        .find((link) => link.getAttribute('xlink:href') === 'https://google.com');
-
-      expect(clickableLink, 'clickable state link').to.not.equal(undefined);
-      expect(clickableLink?.querySelector('g.node[title="Visit Google"]')).to.not.equal(null);
-    });
+    cy.get('svg a')
+      .filter((_index, link) => link.getAttribute('xlink:href') === 'https://google.com')
+      .should('have.length', 1)
+      .find('g.node[title="Visit Google"]')
+      .should('exist');
   });
   it('v2 should render a long descriptions instead of id when available', () => {
     imgSnapshotTest(
