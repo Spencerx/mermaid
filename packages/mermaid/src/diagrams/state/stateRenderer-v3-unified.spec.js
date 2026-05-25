@@ -21,6 +21,9 @@ vi.mock('../../diagram-api/diagramAPI.js', () => ({
 vi.mock('../../rendering-util/render.js', () => ({
   render: vi.fn((data, svg) => {
     const layoutNode = data.nodes.find((node) => node.id === 'A') ?? data.nodes[0];
+    if (layoutNode) {
+      layoutNode.domId = `${svg.attr('id')}-${layoutNode.id}`;
+    }
     const node = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     node.setAttribute('class', renderState.nodeClass);
     node.setAttribute('id', layoutNode?.domId ?? 'state-A-0');
