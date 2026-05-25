@@ -23,6 +23,7 @@ export abstract class BaseAxis implements Axis {
   protected outerPadding = 0;
   protected titleTextHeight = 0;
   protected labelTextHeight = 0;
+  protected normalizedLabelRotationInRad = 0;
 
   constructor(
     protected axisConfig: XYChartAxisConfig,
@@ -33,9 +34,9 @@ export abstract class BaseAxis implements Axis {
     this.range = [0, 10];
     this.boundingRect = { x: 0, y: 0, width: 0, height: 0 };
     this.axisPosition = 'left';
-    this.axisConfig.labelRotation =
+    this.normalizedLabelRotationInRad =
       this.axisConfig.labelRotation >= -90 && this.axisConfig.labelRotation <= 90
-        ? this.axisConfig.labelRotation
+        ? (this.axisConfig.labelRotation * Math.PI) / 180
         : 0;
   }
 
@@ -99,10 +100,11 @@ export abstract class BaseAxis implements Axis {
       this.outerPadding = Math.min(spaceRequired.width / 2, maxPadding);
 
       let heightRequired = spaceRequired.height;
-      if (this.axisPosition === 'bottom' && this.axisConfig.labelRotation !== 0) {
+      if (this.axisPosition === 'bottom' && this.normalizedLabelRotationInRad !== 0) {
         heightRequired = Math.max(
           heightRequired,
-          Math.abs(Math.sin((this.axisConfig.labelRotation * Math.PI) / 180) * spaceRequired.width)
+          Math.abs(Math.sin(this.normalizedLabelRotationInRad) * spaceRequired.width) +
+            Math.abs(Math.cos(this.normalizedLabelRotationInRad) * spaceRequired.height)
         );
       }
       heightRequired += this.axisConfig.labelPadding * 2;
@@ -188,12 +190,12 @@ export abstract class BaseAxis implements Axis {
   }
 
   private calculateOffsetByRotation(reference: 'width' | 'height'): number {
-    const rotation = this.axisConfig.labelRotation;
+    const rotation = this.normalizedLabelRotationInRad;
     if (rotation === 0) {
       return 0;
     }
 
-    return Math.sin((rotation * Math.PI) / 180) * this.getLabelDimension()[reference];
+    return (Math.sin(rotation) * this.getLabelDimension()[reference]) / 2;
   }
 
   private getDrawableElementsForLeftAxis(): DrawableElem[] {
@@ -296,16 +298,16 @@ export abstract class BaseAxis implements Axis {
         groupTexts: ['bottom-axis', 'label'],
         data: this.getTickValues().map((tick) => ({
           text: tick.toString(),
-          x: this.getScaleValue(tick) + this.calculateOffsetByRotation('height') / 2,
+          x: this.getScaleValue(tick) + this.calculateOffsetByRotation('height'),
           y:
             this.boundingRect.y +
             this.axisConfig.labelPadding +
             (this.showTick ? this.axisConfig.tickLength : 0) +
             (this.showAxisLine ? this.axisConfig.axisLineWidth : 0) +
-            Math.abs(this.calculateOffsetByRotation('width') / 2),
+            Math.abs(this.calculateOffsetByRotation('width')),
           fill: this.axisThemeConfig.labelColor,
           fontSize: this.axisConfig.labelFontSize,
-          rotation: this.axisConfig.labelRotation,
+          rotation: (this.normalizedLabelRotationInRad * 180) / Math.PI,
           verticalPos: 'top',
           horizontalPos: 'center',
         })),

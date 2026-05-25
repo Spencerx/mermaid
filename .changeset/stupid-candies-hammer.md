@@ -2,4 +2,4 @@
 'mermaid': minor
 ---
 
-XY Chart - enable rotate label on X axis
+feat: XY Chart - enable rotate label on X axis
