@@ -1,6 +1,7 @@
 import type { LayoutData } from '../../../types.js';
 import {
   collectLayoutNodeRects,
+  isVerticalSegment,
   sameX,
   sameY,
   segmentBoundsOverlapRect,
@@ -103,10 +104,8 @@ function rerouteSubpathAroundLabel(
     const nextStep = points[effectiveEndIdx + 1];
     const curStart = points[effectiveStartIdx];
     const curEnd = points[effectiveEndIdx];
-    const prevIsVerticalStep =
-      sameX(prevStep, curStart, EPS) && Math.abs(prevStep.y - curStart.y) > EPS;
-    const nextIsVerticalStep =
-      sameX(nextStep, curEnd, EPS) && Math.abs(nextStep.y - curEnd.y) > EPS;
+    const prevIsVerticalStep = isVerticalSegment(prevStep, curStart, EPS);
+    const nextIsVerticalStep = isVerticalSegment(nextStep, curEnd, EPS);
     if (prevIsVerticalStep && nextIsVerticalStep) {
       const beforeDir = Math.sign(curStart.y - prevStep.y);
       const afterDir = Math.sign(nextStep.y - curEnd.y);
