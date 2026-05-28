@@ -1,8 +1,6 @@
-import { log } from '../../../../logger.js';
+import type { Edge, Node } from '../../../types.js';
 
-const SWIMLANE_DIR_LOG_PREFIX = 'SWIMLANE_DIR';
-
-export function nudgeSharedInteriorSubpaths(edges: any[], nodeByIdMap: Map<string, any>): void {
+export function nudgeSharedInteriorSubpaths(edges: Edge[], nodeByIdMap: Map<string, Node>): void {
   const EPS_LOCAL = 1e-3;
   const MIN_SHARED = 8;
   const TRACK_SHIFT = 7;
@@ -22,8 +20,7 @@ export function nudgeSharedInteriorSubpaths(edges: any[], nodeByIdMap: Map<strin
   }
 
   interface SegmentLite {
-    edge: any;
-    edgeId: string;
+    edge: Edge;
     index: number;
     a: PointLite;
     b: PointLite;
@@ -35,13 +32,13 @@ export function nudgeSharedInteriorSubpaths(edges: any[], nodeByIdMap: Map<strin
   const realNodeRects: { id: string; rect: RectLite }[] = [];
   const labelRects: { id: string; rect: RectLite }[] = [];
   for (const n of nodeByIdMap.values()) {
-    if ((n as { isGroup?: boolean }).isGroup) {
+    if (n.isGroup) {
       continue;
     }
-    const cx = (n as { x?: number }).x ?? 0;
-    const cy = (n as { y?: number }).y ?? 0;
-    const w = (n as { width?: number }).width ?? 0;
-    const h = (n as { height?: number }).height ?? 0;
+    const cx = n.x ?? 0;
+    const cy = n.y ?? 0;
+    const w = n.width ?? 0;
+    const h = n.height ?? 0;
     if (w <= 0 || h <= 0) {
       continue;
     }
@@ -51,8 +48,8 @@ export function nudgeSharedInteriorSubpaths(edges: any[], nodeByIdMap: Map<strin
       top: cy - h / 2,
       bottom: cy + h / 2,
     };
-    const id = String((n as { id?: string }).id ?? '');
-    if ((n as { isEdgeLabel?: boolean }).isEdgeLabel) {
+    const id = n.id;
+    if (n.isEdgeLabel) {
       labelRects.push({ id, rect });
     } else {
       realNodeRects.push({ id, rect });
@@ -134,9 +131,8 @@ export function nudgeSharedInteriorSubpaths(edges: any[], nodeByIdMap: Map<strin
     );
   };
 
-  const segmentsFor = (edge: any, points: PointLite[]): SegmentLite[] => {
+  const segmentsFor = (edge: Edge, points: PointLite[]): SegmentLite[] => {
     const result: SegmentLite[] = [];
-    const edgeId = String((edge as { id?: string }).id ?? '');
     for (let i = 0; i < points.length - 1; i++) {
       const a = points[i];
       const b = points[i + 1];
@@ -147,7 +143,6 @@ export function nudgeSharedInteriorSubpaths(edges: any[], nodeByIdMap: Map<strin
       }
       result.push({
         edge,
-        edgeId,
         index: i,
         a,
         b,
@@ -162,10 +157,10 @@ export function nudgeSharedInteriorSubpaths(edges: any[], nodeByIdMap: Map<strin
   const allSegments = (): SegmentLite[] => {
     const result: SegmentLite[] = [];
     for (const edge of edges) {
-      if ((edge as { isLayoutOnly?: boolean }).isLayoutOnly) {
+      if (edge.isLayoutOnly) {
         continue;
       }
-      const points = (edge as { points?: PointLite[] }).points;
+      const points = edge.points;
       if (!points || points.length < 2) {
         continue;
       }
@@ -174,9 +169,9 @@ export function nudgeSharedInteriorSubpaths(edges: any[], nodeByIdMap: Map<strin
     return result;
   };
 
-  const candidateIsSafe = (edge: any, candidate: PointLite[]): boolean => {
-    const sourceId = (edge as { start?: string }).start;
-    const targetId = (edge as { end?: string }).end;
+  const candidateIsSafe = (edge: Edge, candidate: PointLite[]): boolean => {
+    const sourceId = edge.start;
+    const targetId = edge.end;
     const candidateSegments = segmentsFor(edge, candidate);
     if (candidateSegments.length !== candidate.length - 1) {
       return false;
@@ -191,7 +186,7 @@ export function nudgeSharedInteriorSubpaths(edges: any[], nodeByIdMap: Map<strin
           return false;
         }
       }
-      const ownLabelId = (edge as { labelNodeId?: string }).labelNodeId;
+      const ownLabelId = edge.labelNodeId;
       for (const labelRect of labelRects) {
         if (ownLabelId && labelRect.id === ownLabelId) {
           continue;
@@ -203,10 +198,10 @@ export function nudgeSharedInteriorSubpaths(edges: any[], nodeByIdMap: Map<strin
     }
 
     for (const other of edges) {
-      if (other === edge || (other as { isLayoutOnly?: boolean }).isLayoutOnly) {
+      if (other === edge || other.isLayoutOnly) {
         continue;
       }
-      const otherPoints = (other as { points?: PointLite[] }).points;
+      const otherPoints = other.points;
       if (!otherPoints || otherPoints.length < 2) {
         continue;
       }
@@ -233,7 +228,7 @@ export function nudgeSharedInteriorSubpaths(edges: any[], nodeByIdMap: Map<strin
   };
 
   const shiftedCandidate = (segment: SegmentLite, shift: number): PointLite[] | undefined => {
-    const points = dedupe((segment.edge as { points?: PointLite[] }).points ?? []);
+    const points = dedupe(segment.edge.points ?? []);
     if (points.length < 4 || segment.index >= points.length - 1) {
       return undefined;
     }
@@ -281,11 +276,7 @@ export function nudgeSharedInteriorSubpaths(edges: any[], nodeByIdMap: Map<strin
               continue;
             }
 
-            (segment.edge as { points: PointLite[] }).points = candidate;
-            log.debug(
-              SWIMLANE_DIR_LOG_PREFIX,
-              `nudgeSharedInteriorSubpaths: ${segment.edgeId} seg ${segment.index}-${segment.index + 1} ${segment.horizontal ? 'y' : 'x'} shift ${shift.toFixed(2)}`
-            );
+            segment.edge.points = candidate;
             fixed = true;
             break;
           }
