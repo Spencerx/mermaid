@@ -1072,8 +1072,6 @@ export function routeEdgesOrthogonal(data: LayoutData, direction?: string): Layo
     const seg2VH_blocked = checkSegmentBlocked(cornerVH, pDstAnchor);
     const pathVH_blocked = seg1VH_blocked || seg2VH_blocked;
 
-    const isItoLabel = e.start === 'I' && (e.end ?? '').includes('edge-label');
-
     if (!pathHV_blocked) {
       // Use horizontal-first L-path
       if (
@@ -1283,36 +1281,6 @@ export function routeEdgesOrthogonal(data: LayoutData, direction?: string): Layo
               }
               const visualRight = obsCenterX + obs.visualXHalfExtent + margin;
               visualMaxX = Math.max(visualMaxX, visualRight);
-            }
-
-            // For LR label edges starting at I (e.g. I->K label), we want to avoid
-            // sending the detour far below tall label blocks like I->J. After the
-            // LR transform, vertical position comes from the TB X coordinate, so a
-            // very large maxX here becomes a very low Y in the final diagram.
-            //
-            // To keep the detour roughly aligned with the bottom of the blocking
-            // label nodes, cap visualMaxX using their TB X position plus half of
-            // their height (which becomes the visual vertical half-extent in LR).
-            if (isItoLabel) {
-              const labelCaps: number[] = [];
-              for (const obs of detourObstacles) {
-                const node = nodes.find((n) => n.id === obs.nodeId);
-                if (!node?.id.includes('edge-label')) {
-                  continue;
-                }
-                const nodeCenterX = (obs.minX + obs.maxX) / 2;
-                const nodeHeight = node.height ?? 0;
-                if (nodeHeight > 0) {
-                  const capX = nodeCenterX + nodeHeight / 2;
-                  labelCaps.push(capX);
-                }
-              }
-              if (labelCaps.length > 0) {
-                const capX = Math.min(...labelCaps);
-                if (!Number.isNaN(capX) && visualMaxX > capX) {
-                  visualMaxX = capX;
-                }
-              }
             }
 
             // Use visual maxX - this may be smaller than the original maxX
