@@ -166,8 +166,8 @@ export function applyLrDirectionTransform(
     totalWidth += n.width ?? 0;
     totalHeight += n.height ?? 0;
   }
-  const avgWidth = contentNodes.length > 0 ? totalWidth / contentNodes.length : 50;
-  const avgHeight = contentNodes.length > 0 ? totalHeight / contentNodes.length : 50;
+  const avgWidth = totalWidth / contentNodes.length;
+  const avgHeight = totalHeight / contentNodes.length;
   const horizontalScaleFactor = avgHeight > 0 ? Math.max(1, avgWidth / avgHeight) : 1;
 
   for (const n of contentNodes) {
