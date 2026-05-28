@@ -38,7 +38,6 @@ export function runSwimlaneLayoutCore(data4Layout: LayoutData): SwimlaneDirectio
     sweeps: 3,
     useTranspose: true,
     heuristic: 'median',
-    cycleHeuristic: 'dfs',
     straightenLongEdges: true,
     ignoreCrossLaneEdges,
     optimizeRanksByCrossings,

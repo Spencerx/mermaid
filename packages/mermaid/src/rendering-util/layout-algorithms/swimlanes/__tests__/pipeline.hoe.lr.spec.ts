@@ -160,7 +160,6 @@ function runHoESwimlanesLR(): { layout: LayoutData; labelNodeId?: string } {
     sweeps: 3,
     useTranspose: true,
     heuristic: 'median',
-    cycleHeuristic: 'dfs',
     straightenLongEdges: true,
     ignoreCrossLaneEdges: true,
     optimizeRanksByCrossings: true,

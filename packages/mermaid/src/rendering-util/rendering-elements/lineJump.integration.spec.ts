@@ -131,7 +131,6 @@ async function runSwimlanes(fixture: SizesFixture): Promise<LayoutData> {
     sweeps: 3,
     useTranspose: true,
     heuristic: 'median',
-    cycleHeuristic: 'dfs',
     straightenLongEdges: true,
     ignoreCrossLaneEdges: true,
     optimizeRanksByCrossings: true,

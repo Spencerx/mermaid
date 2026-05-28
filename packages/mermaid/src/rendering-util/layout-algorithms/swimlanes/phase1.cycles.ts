@@ -68,14 +68,3 @@ export function removeCycles_DFS(g: Graph): CycleRemovalResult {
   };
   return { acyclic, reversed };
 }
-
-// Placeholder implementations for alternative heuristics
-export function removeCycles_BergerShor(g: Graph): CycleRemovalResult {
-  // For now, delegate to DFS to keep behavior deterministic and tested.
-  return removeCycles_DFS(g);
-}
-
-export function removeCycles_Eades(g: Graph): CycleRemovalResult {
-  // For now, delegate to DFS to keep behavior deterministic and tested.
-  return removeCycles_DFS(g);
-}

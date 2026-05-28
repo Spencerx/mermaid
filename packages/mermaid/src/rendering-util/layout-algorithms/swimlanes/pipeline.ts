@@ -1,7 +1,6 @@
 import type { Graph, Layering, OrderedLayers, Coordinates, Edge } from './helpers.js';
 import { normalizeGraph } from './phase0.helpers.js';
-import { removeCycles_DFS, removeCycles_BergerShor, removeCycles_Eades } from './phase1.cycles.js';
-// cspell:ignore eades
+import { removeCycles_DFS } from './phase1.cycles.js';
 
 import { assignLayers_Gravity } from './phase2.gravity.js';
 import { assignLayers_LaneAwareCompact } from './phase2.laneAwareCompact.js';
@@ -9,11 +8,9 @@ import { makeProperLayering } from './phase2.dummies.js';
 import { orderLayers } from './phase3.ordering.js';
 import { assignCoordinates } from './phase4.coordinates.js';
 import { mergeDummies } from './phase4.mergeDummies.js';
-import { CYCLE_REMOVAL, LAYERING } from './config.js';
+import { LAYERING } from './config.js';
 
 export interface LayoutOptions {
-  // Cycle removal
-  cycleHeuristic?: 'dfs' | 'berger-shor' | 'eades';
   // Layering
   preferLongEdgesStraight?: boolean;
   compactSingleInput?: boolean; // default true for compact swimlanes
@@ -41,22 +38,9 @@ export interface LayoutResult {
 
 export function sugiyamaLayout(g: Graph, opts?: LayoutOptions): LayoutResult {
   const g0 = normalizeGraph(g);
-  const cycleHeuristic = opts?.cycleHeuristic ?? CYCLE_REMOVAL.DEFAULT_HEURISTIC;
 
   // Phase 1: cycle removal
-  let cycleRes;
-  switch (cycleHeuristic) {
-    case 'berger-shor':
-      cycleRes = removeCycles_BergerShor(g0);
-      break;
-    case 'eades':
-      cycleRes = removeCycles_Eades(g0);
-      break;
-    case 'dfs':
-    default:
-      cycleRes = removeCycles_DFS(g0);
-      break;
-  }
+  const cycleRes = removeCycles_DFS(g0);
   const gAcyclic = cycleRes.acyclic;
 
   // Phase 2: layering

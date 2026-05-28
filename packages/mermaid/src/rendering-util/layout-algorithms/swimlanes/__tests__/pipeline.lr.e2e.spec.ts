@@ -53,7 +53,6 @@ function runSwimlanesPipeline(direction?: string): LayoutData {
     sweeps: 3,
     useTranspose: true,
     heuristic: 'median',
-    cycleHeuristic: 'dfs',
     straightenLongEdges: true,
   });
 

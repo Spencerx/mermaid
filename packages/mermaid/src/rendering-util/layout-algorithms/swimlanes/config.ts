@@ -63,11 +63,3 @@ export const COORDINATES = {
   /** Whether to straighten long edges by default */
   DEFAULT_STRAIGHTEN_LONG_EDGES: true,
 } as const;
-
-/**
- * Cycle removal constants
- */
-export const CYCLE_REMOVAL = {
-  /** Default heuristic for cycle removal */
-  DEFAULT_HEURISTIC: 'dfs' as const,
-} as const;

@@ -195,7 +195,6 @@ function runKnsv3SwimlanesLR(): {
     sweeps: 3,
     useTranspose: true,
     heuristic: 'median',
-    cycleHeuristic: 'dfs',
     straightenLongEdges: true,
     ignoreCrossLaneEdges: true,
     optimizeRanksByCrossings: true,
