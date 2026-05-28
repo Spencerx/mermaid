@@ -135,3 +135,30 @@ export function buildLayerIndex(layer: NodeId[]): Map<NodeId, number> {
   }
   return m;
 }
+
+export function countInversions(values: number[]): number {
+  const tmp = new Array<number>(values.length);
+  const count = (left: number, right: number): number => {
+    if (right - left <= 1) {
+      return 0;
+    }
+    const mid = (left + right) >> 1;
+    let inversions = count(left, mid) + count(mid, right);
+    let i = left;
+    let j = mid;
+    let k = left;
+    while (i < mid || j < right) {
+      if (j >= right || (i < mid && values[i] <= values[j])) {
+        tmp[k++] = values[i++];
+      } else {
+        tmp[k++] = values[j++];
+        inversions += mid - i;
+      }
+    }
+    for (let t = left; t < right; t++) {
+      values[t] = tmp[t];
+    }
+    return inversions;
+  };
+  return count(0, values.length);
+}

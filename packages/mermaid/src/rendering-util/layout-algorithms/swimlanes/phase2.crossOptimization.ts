@@ -1,5 +1,5 @@
 import type { Graph, NodeId, EdgeRef } from './helpers.js';
-import { buildLayerIndex } from './phase0.helpers.js';
+import { buildLayerIndex, countInversions } from './phase0.helpers.js';
 import { LAYERING } from './config.js';
 import { buildTopLaneMap } from './phase2.options.js';
 import { buildMultitreeLayerOrder } from './phase2.multitree.order.js';
@@ -15,30 +15,7 @@ function countCrossingsBetweenAdjacent(upper: NodeId[], lower: NodeId[], edges: 
       vs.push(li.get(e.dst)!);
     }
   }
-  const tmp = new Array<number>(vs.length);
-  const inv = (arr: number[], l: number, r: number): number => {
-    if (r - l <= 1) {
-      return 0;
-    }
-    const m = (l + r) >> 1;
-    let c = inv(arr, l, m) + inv(arr, m, r);
-    let i = l,
-      j = m,
-      k = l;
-    while (i < m || j < r) {
-      if (j >= r || (i < m && arr[i] <= arr[j])) {
-        tmp[k++] = arr[i++];
-      } else {
-        tmp[k++] = arr[j++];
-        c += m - i;
-      }
-    }
-    for (let t = l; t < r; t++) {
-      arr[t] = tmp[t];
-    }
-    return c;
-  };
-  return inv(vs, 0, vs.length);
+  return countInversions(vs);
 }
 
 function totalCrossings(

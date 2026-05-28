@@ -1,5 +1,5 @@
 import type { Graph, Layering, OrderedLayers, NodeId, Edge } from './helpers.js';
-import { buildLayerIndex } from './phase0.helpers.js';
+import { buildLayerIndex, countInversions } from './phase0.helpers.js';
 import { ORDERING } from './config.js';
 
 type SweepDirection = 'down' | 'up';
@@ -120,31 +120,7 @@ function countCrossingsBetweenAdjacent(upper: NodeId[], lower: NodeId[], edges: 
   // Sort by u, count inversions in v
   pairs.sort((a, b) => (a.u === b.u ? a.v - b.v : a.u - b.u));
   const vs = pairs.map((p) => p.v);
-  // Count inversions (O(n log n)) using merge sort
-  const tmp = Array<number>(vs.length);
-  const invCount = (arr: number[], l: number, r: number): number => {
-    if (r - l <= 1) {
-      return 0;
-    }
-    const m = (l + r) >> 1;
-    let cnt = invCount(arr, l, m) + invCount(arr, m, r);
-    let i = l,
-      j = m,
-      k = l;
-    while (i < m || j < r) {
-      if (j >= r || (i < m && arr[i] <= arr[j])) {
-        tmp[k++] = arr[i++];
-      } else {
-        tmp[k++] = arr[j++];
-        cnt += m - i;
-      }
-    }
-    for (let t = l; t < r; t++) {
-      arr[t] = tmp[t];
-    }
-    return cnt;
-  };
-  return invCount(vs, 0, vs.length);
+  return countInversions(vs);
 }
 
 export function totalCrossings(layers: NodeId[][], edges: Edge[]): number {
