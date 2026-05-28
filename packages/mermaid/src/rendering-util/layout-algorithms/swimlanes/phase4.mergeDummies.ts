@@ -200,31 +200,22 @@ function createClearanceCheckers(obstacles: Rect[]) {
   return { clearHorizontal, clearVertical };
 }
 
-function createIntervalUtils() {
-  const occupies = (intervals: Interval[], a: number, b: number): boolean => {
-    const x = Math.min(a, b);
-    const y = Math.max(a, b);
-    for (const iv of intervals) {
-      if (!(y <= iv.a || x >= iv.b)) {
-        return true;
-      }
+function occupies(intervals: Interval[], a: number, b: number): boolean {
+  const x = Math.min(a, b);
+  const y = Math.max(a, b);
+  for (const iv of intervals) {
+    if (!(y <= iv.a || x >= iv.b)) {
+      return true;
     }
-    return false;
-  };
-
-  const reserveInterval = (intervals: Interval[], a: number, b: number) => {
-    intervals.push({ a: Math.min(a, b), b: Math.max(a, b) });
-  };
-
-  return { occupies, reserveInterval };
+  }
+  return false;
 }
 
-function createTrackAllocator(
-  edgeGap: number,
-  intervalUtils: ReturnType<typeof createIntervalUtils>
-) {
-  const { occupies, reserveInterval } = intervalUtils;
+function reserveInterval(intervals: Interval[], a: number, b: number) {
+  intervals.push({ a: Math.min(a, b), b: Math.max(a, b) });
+}
 
+function createTrackAllocator(edgeGap: number) {
   const intervalsForTrack = (
     reservations: Map<string, Map<number, Interval[]>>,
     key: string,
@@ -337,8 +328,7 @@ export function mergeDummies(
   const obstacles = buildObstacles(out, accessors);
   const { clearHorizontal, clearVertical } = createClearanceCheckers(obstacles);
 
-  const intervalUtils = createIntervalUtils();
-  const trackAllocator = createTrackAllocator(EDGE_GAP, intervalUtils);
+  const trackAllocator = createTrackAllocator(EDGE_GAP);
   const {
     chooseHTrackOffset,
     canReserveHorizontal,
