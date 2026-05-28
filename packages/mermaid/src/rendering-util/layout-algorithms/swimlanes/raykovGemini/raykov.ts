@@ -640,6 +640,30 @@ export function routeEdgesOrthogonal(data: LayoutData, direction?: string): Layo
     }
   };
 
+  const portsForEdge = (edgeIndex: number, src: MermaidNode, dst: MermaidNode) => {
+    const sideInfo = sideInfoByIdx.get(edgeIndex);
+    const srcTarget = { x: dst.x ?? 0, y: dst.y ?? 0 };
+    const dstTarget = { x: src.x ?? 0, y: src.y ?? 0 };
+    const srcSide = sideInfo?.srcSide ?? determineSide(src, srcTarget);
+    const dstSide = sideInfo?.dstSide ?? determineSide(dst, dstTarget);
+    let pSrcPort = sideInfo
+      ? portForSide(src, sideInfo.srcSide)
+      : getOrthogonalPort(src, srcTarget, true);
+    let pDstPort = sideInfo
+      ? portForSide(dst, sideInfo.dstSide)
+      : getOrthogonalPort(dst, dstTarget, false);
+
+    const srcOffset = portOffsets.get(`${edgeIndex}:src`);
+    const dstOffset = portOffsets.get(`${edgeIndex}:dst`);
+    if (srcOffset !== undefined) {
+      pSrcPort = applyPortOffset(pSrcPort, srcSide, srcOffset);
+    }
+    if (dstOffset !== undefined) {
+      pDstPort = applyPortOffset(pDstPort, dstSide, dstOffset);
+    }
+    return { pSrcPort, pDstPort, srcSide, dstSide };
+  };
+
   for (const i of routingOrder) {
     const e = edges[i];
     edgeSegmentIndices[i] = [];
@@ -664,25 +688,12 @@ export function routeEdgesOrthogonal(data: LayoutData, direction?: string): Layo
     // 2. Compute Ports. Use the side assignment from Step 6.2 (sibling
     // side-split) so that a reassigned edge exits from its secondary
     // cardinal side instead of `getOrthogonalPort`'s natural choice.
-    const sideInfo = sideInfoByIdx.get(i);
-    let pSrcPort = sideInfo
-      ? portForSide(src, sideInfo.srcSide)
-      : getOrthogonalPort(src, { x: dst.x ?? 0, y: dst.y ?? 0 }, true);
-    let pDstPort = sideInfo
-      ? portForSide(dst, sideInfo.dstSide)
-      : getOrthogonalPort(dst, { x: src.x ?? 0, y: src.y ?? 0 }, false);
-
-    // Apply port distribution offsets for edges sharing a node side
-    const srcOffset = portOffsets.get(`${i}:src`);
-    const dstOffset = portOffsets.get(`${i}:dst`);
-    if (srcOffset !== undefined) {
-      const srcSide = sideInfo?.srcSide ?? determineSide(src, { x: dst.x ?? 0, y: dst.y ?? 0 });
-      pSrcPort = applyPortOffset(pSrcPort, srcSide, srcOffset);
-    }
-    if (dstOffset !== undefined) {
-      const dstSide = sideInfo?.dstSide ?? determineSide(dst, { x: src.x ?? 0, y: src.y ?? 0 });
-      pDstPort = applyPortOffset(pDstPort, dstSide, dstOffset);
-    }
+    const {
+      pSrcPort,
+      pDstPort,
+      srcSide: srcPortSide,
+      dstSide: dstPortSide,
+    } = portsForEdge(i, src, dst);
 
     // 3. Compute Anchors
     const pSrcAnchor: Point = { ...pSrcPort };
@@ -695,9 +706,7 @@ export function routeEdgesOrthogonal(data: LayoutData, direction?: string): Layo
     // Determine if ports are vertical (top/bottom) or horizontal (left/right).
     // Prefer the side from Step 6.2 so that a reassigned sibling gets its
     // anchor extended on the correct axis.
-    const srcPortSide = sideInfo?.srcSide ?? determineSide(src, { x: dst.x ?? 0, y: dst.y ?? 0 });
     const srcPortIsVertical = srcPortSide === 'top' || srcPortSide === 'bottom';
-    const dstPortSide = sideInfo?.dstSide ?? determineSide(dst, { x: src.x ?? 0, y: src.y ?? 0 });
     const dstPortIsVertical = dstPortSide === 'top' || dstPortSide === 'bottom';
 
     // Source Anchor - extend from port in the appropriate direction
@@ -2200,24 +2209,7 @@ export function routeEdgesOrthogonal(data: LayoutData, direction?: string): Layo
     // Recompute ports, honoring Step 6.2's side assignment.
     const src = nodeById.get(e.start!)!;
     const dst = nodeById.get(e.end!)!;
-    const sideInfoRebuild = sideInfoByIdx.get(i);
-    let pSrcPort = sideInfoRebuild
-      ? portForSide(src, sideInfoRebuild.srcSide)
-      : getOrthogonalPort(src, { x: dst.x ?? 0, y: dst.y ?? 0 }, true);
-    let pDstPort = sideInfoRebuild
-      ? portForSide(dst, sideInfoRebuild.dstSide)
-      : getOrthogonalPort(dst, { x: src.x ?? 0, y: src.y ?? 0 }, false);
-
-    const srcOff = portOffsets.get(`${i}:src`);
-    const dstOff = portOffsets.get(`${i}:dst`);
-    if (srcOff !== undefined) {
-      const side = sideInfoRebuild?.srcSide ?? determineSide(src, { x: dst.x ?? 0, y: dst.y ?? 0 });
-      pSrcPort = applyPortOffset(pSrcPort, side, srcOff);
-    }
-    if (dstOff !== undefined) {
-      const side = sideInfoRebuild?.dstSide ?? determineSide(dst, { x: src.x ?? 0, y: src.y ?? 0 });
-      pDstPort = applyPortOffset(pDstPort, side, dstOff);
-    }
+    const { pSrcPort, pDstPort } = portsForEdge(i, src, dst);
 
     const lines: RoutedLine[] = indices.map((idx) => {
       const s = allRoutedSegments[idx];
