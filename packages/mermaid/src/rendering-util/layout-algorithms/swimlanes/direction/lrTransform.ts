@@ -260,12 +260,11 @@ export function applyLrDirectionTransform(
   const minHeaderMargin = 36;
   const fullContentWidth = Math.max(0, globalMaxXChild - globalMinXChild);
   const horizontalMargin = Math.max(maxPad, 10);
-  const titleBandWidth = minHeaderMargin;
   const bodyWidth = fullContentWidth + 2 * horizontalMargin;
-  const laneWidth = titleBandWidth + bodyWidth;
+  const laneWidth = minHeaderMargin + bodyWidth;
   const bodyCenter = (globalMinXChild + globalMaxXChild) / 2;
   const bodyLeft = bodyCenter - bodyWidth / 2;
-  const laneLeft = bodyLeft - titleBandWidth;
+  const laneLeft = bodyLeft - minHeaderMargin;
   const centerX = laneLeft + laneWidth / 2;
   const verticalMargin = Math.max(maxPad, minHeaderMargin);
 
