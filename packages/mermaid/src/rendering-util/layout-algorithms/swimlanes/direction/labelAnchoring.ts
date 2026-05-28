@@ -200,15 +200,13 @@ export function anchorLabelsToPolyline(edges: Edge[], nodeByIdMap: Map<string, N
     // label is drawn horizontally inside its bbox regardless, so the long
     // axis only drives preference, not hard filtering.
     const labelLongAxis: 'horizontal' | 'vertical' = lw >= lh ? 'horizontal' : 'vertical';
-    const labelExtentOnAxis = (axis: 'horizontal' | 'vertical') =>
-      axis === 'horizontal' ? lw : lh;
 
     // Candidate ranking: (a) length >= labelExtent + 2, (b) orientation
     // matching label long axis preferred, (c) longest tie-break.
     const rankSegments = (pool: SegmentCandidate[]): SegmentCandidate[] => {
       return [...pool].sort((a, b) => {
-        const aFits = a.length >= labelExtentOnAxis(a.orientation) + 2;
-        const bFits = b.length >= labelExtentOnAxis(b.orientation) + 2;
+        const aFits = a.length >= (a.orientation === 'horizontal' ? lw : lh) + 2;
+        const bFits = b.length >= (b.orientation === 'horizontal' ? lw : lh) + 2;
         if (aFits !== bFits) {
           return aFits ? -1 : 1;
         }
