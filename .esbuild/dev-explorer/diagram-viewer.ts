@@ -6,7 +6,11 @@ import '@shoelace-style/shoelace/dist/components/select/select.js';
 import '@shoelace-style/shoelace/dist/components/option/option.js';
 import '@shoelace-style/shoelace/dist/components/checkbox/checkbox.js';
 import '@shoelace-style/shoelace/dist/components/split-panel/split-panel.js';
+import '@shoelace-style/shoelace/dist/components/tab/tab.js';
+import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
+import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
 
+import './code-editor';
 import './console-panel';
 import type { LogEntry, LogLevel } from './console-panel';
 
@@ -68,6 +72,7 @@ type MermaidTheme =
 type MermaidLayout = 'dagre' | 'elk' | 'domus' | 'hola' | 'swimlanes';
 type MermaidLook = 'classic' | 'handDrawn' | 'neo';
 type MermaidLogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+type ViewerTab = 'diagram' | 'code';
 
 const DEFAULT_THEME: MermaidTheme = 'default';
 const DEFAULT_LAYOUT: MermaidLayout = 'dagre';
@@ -165,8 +170,14 @@ export class DevDiagramViewer extends LitElement {
     loading: { state: true },
     error: { state: true },
     source: { state: true },
+    savedSource: { state: true },
+    editorSource: { state: true },
     svg: { state: true },
     splitPosition: { state: true },
+    activeTab: { state: true },
+    dirty: { state: true },
+    saving: { state: true },
+    saveMessage: { state: true },
   };
 
   declare filePath: string;
@@ -181,8 +192,14 @@ export class DevDiagramViewer extends LitElement {
   declare loading: boolean;
   declare error: string;
   declare source: string;
+  declare savedSource: string;
+  declare editorSource: string;
   declare svg: string;
   declare splitPosition: number;
+  declare activeTab: ViewerTab;
+  declare dirty: boolean;
+  declare saving: boolean;
+  declare saveMessage: string;
 
   #renderSeq = 0;
   #consolePatched = false;
@@ -255,7 +272,13 @@ export class DevDiagramViewer extends LitElement {
     this.loading = true;
     this.error = '';
     this.source = '';
+    this.savedSource = '';
+    this.editorSource = '';
     this.svg = '';
+    this.activeTab = 'diagram';
+    this.dirty = false;
+    this.saving = false;
+    this.saveMessage = '';
   }
 
   createRenderRoot() {
@@ -277,7 +300,12 @@ export class DevDiagramViewer extends LitElement {
       void this.#loadAndRender();
     } else if (changed.has('sseToken')) {
       // On rebuild events, re-fetch + re-render the currently open diagram.
-      if (this.filePath) void this.#loadAndRender();
+      if (!this.filePath) return;
+      if (this.dirty) {
+        this.saveMessage = 'File changed on disk; reload to discard local edits.';
+        return;
+      }
+      void this.#loadAndRender();
     } else if (
       changed.has('theme') ||
       changed.has('layout') ||
@@ -323,6 +351,16 @@ export class DevDiagramViewer extends LitElement {
 
   #persistSplitPosition() {
     writeStorage('devExplorer.viewer.splitPosition', String(this.splitPosition));
+  }
+
+  #setActiveTab(tab: ViewerTab) {
+    this.activeTab = tab;
+    if (tab === 'code') {
+      void this.updateComplete.then(() => {
+        const editor = this.querySelector('dev-code-editor') as any;
+        editor?.requestMeasure?.();
+      });
+    }
   }
 
   #syncConsolePanelFilters() {
@@ -425,6 +463,52 @@ export class DevDiagramViewer extends LitElement {
     return await res.text();
   }
 
+  async #saveSource() {
+    if (!this.filePath || this.saving || !this.dirty) return;
+
+    this.saving = true;
+    this.error = '';
+    this.saveMessage = '';
+    try {
+      const nextSource = this.editorSource;
+      const url = new URL('/dev/api/file', window.location.origin);
+      url.searchParams.set('path', this.filePath);
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        body: nextSource,
+      });
+      if (!res.ok) {
+        const message = await res.text();
+        throw new Error(message || `HTTP ${res.status}`);
+      }
+
+      this.savedSource = nextSource;
+      this.source = nextSource;
+      this.dirty = false;
+      this.saveMessage = `Saved ${new Date().toLocaleTimeString(undefined, { hour12: false })}`;
+      await this.#renderCurrentSource();
+    } catch (e) {
+      this.error = e instanceof Error ? e.message : String(e);
+      this.saveMessage = 'Save failed.';
+    } finally {
+      this.saving = false;
+    }
+  }
+
+  #handleEditorChange(value: string) {
+    this.editorSource = value;
+    this.dirty = value !== this.savedSource;
+    if (this.dirty) {
+      this.saveMessage = '';
+    }
+  }
+
+  #reloadFromDisk() {
+    this.saveMessage = '';
+    void this.#loadAndRender();
+  }
+
   async #loadAndRender() {
     const seq = ++this.#renderSeq;
     this.loading = true;
@@ -437,6 +521,10 @@ export class DevDiagramViewer extends LitElement {
       const source = await this.#fetchSource();
       if (seq !== this.#renderSeq) return;
       this.source = source;
+      this.savedSource = source;
+      this.editorSource = source;
+      this.dirty = false;
+      this.saveMessage = '';
       await this.#renderMermaid(source);
     } catch (e) {
       this.error = e instanceof Error ? e.message : String(e);
@@ -516,6 +604,12 @@ export class DevDiagramViewer extends LitElement {
   }
 
   render() {
+    const saveStatus = this.saving
+      ? 'saving...'
+      : this.dirty
+        ? 'unsaved changes'
+        : this.saveMessage || 'saved';
+
     return html`
       <div class="header">
         <sl-button size="small" variant="default" @click=${() => this.#back()}>
@@ -661,21 +755,75 @@ export class DevDiagramViewer extends LitElement {
         : nothing}
 
       <div class="content">
-        <sl-split-panel
-          position=${this.splitPosition}
-          style="height: 100%;"
-          @sl-reposition=${(e: any) => {
-            this.splitPosition = e.target?.position ?? 75;
-            this.#persistSplitPosition();
+        <sl-tab-group
+          class="viewer-tabs"
+          active-tab=${this.activeTab}
+          @sl-tab-show=${(e: any) => {
+            const name = e.detail?.name;
+            if (name === 'diagram' || name === 'code') this.#setActiveTab(name);
           }}
         >
-          <div slot="start" class="diagram">
-            <div class="diagram-inner" data-theme=${this.theme} .innerHTML=${this.svg}></div>
-          </div>
-          <div slot="end" style="height: 100%;">
-            <dev-console-panel></dev-console-panel>
-          </div>
-        </sl-split-panel>
+          <sl-tab slot="nav" panel="diagram">
+            <sl-icon name="diagram-3"></sl-icon>
+            Diagram
+          </sl-tab>
+          <sl-tab slot="nav" panel="code">
+            <sl-icon name="file-earmark-code"></sl-icon>
+            Code
+          </sl-tab>
+
+          <sl-tab-panel name="diagram">
+            <sl-split-panel
+              position=${this.splitPosition}
+              style="height: 100%;"
+              @sl-reposition=${(e: any) => {
+                this.splitPosition = e.target?.position ?? 75;
+                this.#persistSplitPosition();
+              }}
+            >
+              <div slot="start" class="diagram">
+                <div class="diagram-inner" data-theme=${this.theme} .innerHTML=${this.svg}></div>
+              </div>
+              <div slot="end" style="height: 100%;">
+                <dev-console-panel></dev-console-panel>
+              </div>
+            </sl-split-panel>
+          </sl-tab-panel>
+
+          <sl-tab-panel name="code">
+            <div class="code-pane">
+              <div class="code-toolbar">
+                <div class="path">${this.filePath}</div>
+                <div class="spacer"></div>
+                <div class="subtle">${saveStatus}</div>
+                <sl-button
+                  size="small"
+                  variant="default"
+                  ?disabled=${this.loading || this.saving}
+                  @click=${() => this.#reloadFromDisk()}
+                >
+                  <sl-icon slot="prefix" name="arrow-clockwise"></sl-icon>
+                  Reload
+                </sl-button>
+                <sl-button
+                  size="small"
+                  variant="primary"
+                  ?disabled=${!this.dirty || this.saving}
+                  @click=${() => void this.#saveSource()}
+                >
+                  <sl-icon slot="prefix" name="floppy"></sl-icon>
+                  Save
+                </sl-button>
+              </div>
+              <dev-code-editor
+                .value=${this.editorSource}
+                @code-change=${(e: CustomEvent<{ value: string }>) =>
+                  this.#handleEditorChange(e.detail.value)}
+                @save-code=${() => void this.#saveSource()}
+              ></dev-code-editor>
+            </div>
+          </sl-tab-panel>
+        </sl-tab-group>
       </div>
     `;
   }

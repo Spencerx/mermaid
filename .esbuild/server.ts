@@ -323,6 +323,33 @@ async function createServer() {
     }
   });
 
+  app.put('/dev/api/file', express.text({ type: '*/*', limit: '1mb' }), async (req, res) => {
+    try {
+      const { absPath, relPath } = resolveWithinDevExplorerRoot(req.query.path);
+      if (!absPath.endsWith('.mmd')) {
+        res.status(400).json({ error: 'Only .mmd files are allowed' });
+        return;
+      }
+      const stats = await fs.stat(absPath);
+      if (!stats.isFile()) {
+        res.status(400).json({ error: 'Not a file' });
+        return;
+      }
+      if (typeof req.body !== 'string') {
+        res.status(400).json({ error: 'Expected text/plain request body' });
+        return;
+      }
+
+      await fs.writeFile(absPath, req.body, 'utf-8');
+      res.json({
+        path: relPath,
+        bytes: Buffer.byteLength(req.body, 'utf-8'),
+      });
+    } catch (_e) {
+      res.status(400).json({ error: 'Invalid path' });
+    }
+  });
+
   // Static assets for the dev-explorer UI.
   app.use('/dev/assets', express.static(devExplorerDistDir));
   // Serve `/dev/` (and `/dev`) from public/, including index.html.
