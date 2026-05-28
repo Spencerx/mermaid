@@ -1,9 +1,12 @@
 // cspell:ignore Hegemann Wybrow penult
 import {
+  collectNodeRectEntries,
   dedupeConsecutivePoints,
   orthogonalSegmentsStrictlyCross as segmentsCross,
+  rectFromCenterSize,
   segmentBoundsOverlapRect,
 } from './geometry.js';
+import type { Point } from './geometry.js';
 
 /**
  * Iter 16 — collapse a short terminal stub at an edge's destination by
@@ -38,45 +41,17 @@ export function collapseShortTerminalStub(edges: any[], nodeByIdMap: Map<string,
   const EPS_LOCAL = 1e-3;
   const BUFFER = 2;
 
-  interface RectLite {
-    left: number;
-    right: number;
-    top: number;
-    bottom: number;
-  }
+  type PointLite = Point;
 
-  const realNodeRects: { id: string; rect: RectLite }[] = [];
-  const labelRects: { id: string; rect: RectLite }[] = [];
-  for (const n of nodeByIdMap.values()) {
-    if ((n as { isGroup?: boolean }).isGroup) {
-      continue;
-    }
-    const cx = (n as { x?: number }).x ?? 0;
-    const cy = (n as { y?: number }).y ?? 0;
-    const w = (n as { width?: number }).width ?? 0;
-    const h = (n as { height?: number }).height ?? 0;
-    if (w <= 0 || h <= 0) {
-      continue;
-    }
-    const rect: RectLite = {
-      left: cx - w / 2,
-      right: cx + w / 2,
-      top: cy - h / 2,
-      bottom: cy + h / 2,
-    };
-    const id = String((n as { id?: string }).id ?? '');
-    if ((n as { isEdgeLabel?: boolean }).isEdgeLabel) {
-      labelRects.push({ id, rect });
-    } else {
-      realNodeRects.push({ id, rect });
-    }
-  }
+  const { realNodeRects, labelNodeRects: labelRects } = collectNodeRectEntries(
+    nodeByIdMap.values()
+  );
 
   for (const edge of edges) {
     if ((edge as { isLayoutOnly?: boolean }).isLayoutOnly) {
       continue;
     }
-    const rawPts = (edge as { points?: { x: number; y: number }[] }).points;
+    const rawPts = (edge as { points?: PointLite[] }).points;
     if (!rawPts || rawPts.length < 4) {
       continue;
     }
@@ -130,10 +105,7 @@ export function collapseShortTerminalStub(edges: any[], nodeByIdMap: Map<string,
     if (dstW <= 0 || dstH <= 0) {
       continue;
     }
-    const dstLeft = dstCx - dstW / 2;
-    const dstRight = dstCx + dstW / 2;
-    const dstTop = dstCy - dstH / 2;
-    const dstBottom = dstCy + dstH / 2;
+    const dstRect = rectFromCenterSize(dstCx, dstCy, dstW, dstH);
 
     // Compute the new prev' and end'. The axis of approach is the
     // penult segment's axis; the new face is on the perpendicular to
@@ -144,12 +116,12 @@ export function collapseShortTerminalStub(edges: any[], nodeByIdMap: Map<string,
       // Vertical approach: penult goes up (penultDy<0) or down (penultDy>0).
       const approachFromBelow = penultDy < 0;
       newPrev = { x: dstCx, y: prevPt.y };
-      newEnd = { x: dstCx, y: approachFromBelow ? dstBottom : dstTop };
+      newEnd = { x: dstCx, y: approachFromBelow ? dstRect.bottom : dstRect.top };
     } else {
       // Horizontal approach: penult goes right (penultDx>0) or left.
       const approachFromLeft = penultDx > 0;
       newPrev = { x: prevPt.x, y: dstCy };
-      newEnd = { x: approachFromLeft ? dstRight : dstLeft, y: dstCy };
+      newEnd = { x: approachFromLeft ? dstRect.right : dstRect.left, y: dstCy };
     }
 
     // Reject if the new prev'→end' vertical/horizontal segment would cross
@@ -204,38 +176,40 @@ export function collapseShortTerminalStub(edges: any[], nodeByIdMap: Map<string,
 
     // Also reject if the new prev'→end' segment crosses any other edge's
     // existing segment (excluding our own segments we're about to replace).
-    const ownSegmentKey = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+    const ownSegmentKey = (a: PointLite, b: PointLite) =>
       `${a.x.toFixed(3)},${a.y.toFixed(3)}|${b.x.toFixed(3)},${b.y.toFixed(3)}`;
     const selfSegments = new Set<string>();
     for (let i = 0; i < pts.length - 1; i++) {
       selfSegments.add(ownSegmentKey(pts[i], pts[i + 1]));
     }
-    for (const other of edges) {
-      if (other === edge) {
-        continue;
-      }
-      if ((other as { isLayoutOnly?: boolean }).isLayoutOnly) {
-        continue;
-      }
-      const oPts = (other as { points?: { x: number; y: number }[] }).points;
-      if (!oPts || oPts.length < 2) {
-        continue;
-      }
-      for (let i = 0; i < oPts.length - 1; i++) {
-        const a = oPts[i];
-        const b = oPts[i + 1];
-        if (selfSegments.has(ownSegmentKey(a, b))) {
+
+    const segmentCrossesOtherEdge = (from: PointLite, to: PointLite): boolean => {
+      for (const other of edges) {
+        if (other === edge) {
           continue;
         }
-        if (segmentsCross(newPrev, newEnd, a, b, EPS_LOCAL)) {
-          blocked = true;
-          break;
+        if ((other as { isLayoutOnly?: boolean }).isLayoutOnly) {
+          continue;
+        }
+        const oPts = (other as { points?: PointLite[] }).points;
+        if (!oPts || oPts.length < 2) {
+          continue;
+        }
+        for (let i = 0; i < oPts.length - 1; i++) {
+          const a = oPts[i];
+          const b = oPts[i + 1];
+          if (selfSegments.has(ownSegmentKey(a, b))) {
+            continue;
+          }
+          if (segmentsCross(from, to, a, b, EPS_LOCAL)) {
+            return true;
+          }
         }
       }
-      if (blocked) {
-        break;
-      }
-    }
+      return false;
+    };
+
+    blocked = segmentCrossesOtherEdge(newPrev, newEnd);
     if (blocked) {
       continue;
     }
@@ -262,32 +236,7 @@ export function collapseShortTerminalStub(edges: any[], nodeByIdMap: Map<string,
       if (blocked) {
         continue;
       }
-      for (const other of edges) {
-        if (other === edge) {
-          continue;
-        }
-        if ((other as { isLayoutOnly?: boolean }).isLayoutOnly) {
-          continue;
-        }
-        const oPts = (other as { points?: { x: number; y: number }[] }).points;
-        if (!oPts || oPts.length < 2) {
-          continue;
-        }
-        for (let i = 0; i < oPts.length - 1; i++) {
-          const a = oPts[i];
-          const b = oPts[i + 1];
-          if (selfSegments.has(ownSegmentKey(a, b))) {
-            continue;
-          }
-          if (segmentsCross(beforePrev, newPrev, a, b, EPS_LOCAL)) {
-            blocked = true;
-            break;
-          }
-        }
-        if (blocked) {
-          break;
-        }
-      }
+      blocked = segmentCrossesOtherEdge(beforePrev, newPrev);
       if (blocked) {
         continue;
       }
@@ -298,7 +247,7 @@ export function collapseShortTerminalStub(edges: any[], nodeByIdMap: Map<string,
     // and newEnd (one fewer bend).
     const head = pts.slice(0, nLast - 2);
     const newPts = [...head, newPrev, newEnd];
-    (edge as { points: { x: number; y: number }[] }).points = newPts;
+    (edge as { points: PointLite[] }).points = newPts;
 
     // Re-anchor the edge's label (if any) onto the new polyline. The
     // original anchorLabelsToPolyline pass ran earlier in the pipeline
