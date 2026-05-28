@@ -1,15 +1,7 @@
 import type { Graph, Layering, OrderedLayers, NodeId, Edge } from './helpers.js';
 import { buildLayerIndex, countInversions } from './phase0.helpers.js';
-import { ORDERING } from './config.js';
 
 type SweepDirection = 'down' | 'up';
-type OrderingHeuristic = 'median' | 'barycenter';
-
-export interface OrderingOptions {
-  sweeps?: number; // default 3
-  useTranspose?: boolean; // default true
-  heuristic?: 'median' | 'barycenter'; // default 'median'
-}
 
 /**
  * Resolve the top-level lane (root group) for a node.
@@ -132,19 +124,17 @@ export function totalCrossings(layers: NodeId[][], edges: Edge[]): number {
 }
 
 /**
- * Sort a subset of nodes by their median/barycenter score relative to a fixed layer.
+ * Sort a subset of nodes by their median score relative to a fixed layer.
  * This is the core sorting logic extracted for reuse per-lane.
  */
 function sortByHeuristic(
   nodes: NodeId[],
   neighborPositions: Map<NodeId, number[]>,
-  heuristic: OrderingHeuristic,
   currentLayerIndex: Map<NodeId, number>
 ): NodeId[] {
-  const score = (arr: number[]) => (heuristic === 'median' ? median(arr) : barycenter(arr));
   return [...nodes].sort((a, b) => {
-    const sa = score(neighborPositions.get(a) ?? []);
-    const sb = score(neighborPositions.get(b) ?? []);
+    const sa = median(neighborPositions.get(a) ?? []);
+    const sb = median(neighborPositions.get(b) ?? []);
     if (sa === sb) {
       return currentOrderTieBreak(a, b, currentLayerIndex);
     }
@@ -163,7 +153,6 @@ function reorderLayer(
   targetLayer: NodeId[],
   edges: Edge[],
   direction: SweepDirection,
-  heuristic: OrderingHeuristic,
   g?: Graph,
   laneOrder?: string[]
 ): NodeId[] {
@@ -173,7 +162,7 @@ function reorderLayer(
 
   // If no lane info, fall back to flat reorder (original behavior)
   if (!g || !laneOrder || laneOrder.length === 0) {
-    return sortByHeuristic(targetLayer, neighborPositions, heuristic, currIndex);
+    return sortByHeuristic(targetLayer, neighborPositions, currIndex);
   }
 
   // Partition target layer nodes by lane
@@ -194,7 +183,7 @@ function reorderLayer(
     if (!nodesInLane || nodesInLane.length === 0) {
       continue;
     }
-    const sorted = sortByHeuristic(nodesInLane, neighborPositions, heuristic, currIndex);
+    const sorted = sortByHeuristic(nodesInLane, neighborPositions, currIndex);
     result.push(...sorted);
   }
 
@@ -204,7 +193,7 @@ function reorderLayer(
   const nullNodes = byLane.get(null);
   if (nullNodes && nullNodes.length > 0) {
     // Sort null-lane nodes by their barycenter across the full layer
-    const sorted = sortByHeuristic(nullNodes, neighborPositions, heuristic, currIndex);
+    const sorted = sortByHeuristic(nullNodes, neighborPositions, currIndex);
 
     // For each null-lane node, find the best insertion position
     // based on its connections to nodes already in the result
@@ -300,7 +289,7 @@ function transposeImprove(
 /**
  * Orders nodes within each layer to minimize edge crossings using layer-by-layer sweep heuristics.
  *
- * **Algorithm: Layer-by-Layer Sweep (Median/Barycenter Heuristic)**
+ * **Algorithm: Layer-by-Layer Sweep (Median Heuristic)**
  *
  * This implements the classic Sugiyama framework Phase 3: vertex ordering within layers.
  * The goal is to minimize the number of edge crossings between adjacent layers.
@@ -308,21 +297,19 @@ function transposeImprove(
  * **Process:**
  * 1. **Top-Down Sweep:** For each layer i (from top to bottom):
  *    - Fix layer i-1
- *    - Reorder layer i based on the median (or barycenter) of neighbor positions in layer i-1
+ *    - Reorder layer i based on the median of neighbor positions in layer i-1
  *    - Optionally apply transpose improvement (local swaps that reduce crossings)
  *
  * 2. **Bottom-Up Sweep:** For each layer i (from bottom to top):
  *    - Fix layer i+1
- *    - Reorder layer i based on the median (or barycenter) of neighbor positions in layer i+1
+ *    - Reorder layer i based on the median of neighbor positions in layer i+1
  *    - Optionally apply transpose improvement
  *
- * 3. **Repeat:** Perform multiple sweeps (default: 3) to converge to a local optimum
+ * 3. **Repeat:** Perform 3 sweeps to converge to a local optimum
  *
  * **Heuristics:**
  * - **Median:** For each node, compute the median position of its neighbors in the adjacent layer.
  *   More stable and often produces better results for sparse graphs.
- * - **Barycenter:** Compute the average (barycenter) position of neighbors.
- *   Faster to compute but can be less stable.
  *
  * **Transpose Improvement:**
  * After each sweep, try swapping adjacent nodes if it reduces crossings. This is a local
@@ -339,18 +326,9 @@ function transposeImprove(
  *
  * @param layering - The layering from Phase 2 (nodes assigned to layers)
  * @param gWithDummies - Graph with dummy nodes inserted for long edges
- * @param opts - Options: sweeps (default 3), useTranspose (default true), heuristic (default 'median')
  * @returns OrderedLayers with nodes ordered within each layer to minimize crossings
  */
-export function orderLayers(
-  layering: Layering,
-  gWithDummies: Graph,
-  opts?: OrderingOptions
-): OrderedLayers {
-  const sweeps = opts?.sweeps ?? ORDERING.DEFAULT_SWEEPS;
-  const useTranspose = opts?.useTranspose ?? ORDERING.DEFAULT_USE_TRANSPOSE;
-  const heuristic = opts?.heuristic ?? ORDERING.DEFAULT_HEURISTIC;
-
+export function orderLayers(layering: Layering, gWithDummies: Graph): OrderedLayers {
   // Start with deterministic initial order per layer (preserve given order)
   const layers = layering.layers.map((l) => [...l]);
   const edges = gWithDummies.edges;
@@ -359,36 +337,16 @@ export function orderLayers(
   const laneOrder = computeLaneOrder(gWithDummies);
 
   // Perform top-down / bottom-up sweeps
-  for (let s = 0; s < sweeps; s++) {
+  for (let s = 0; s < 3; s++) {
     // Top-down: reorder layer i based on neighbors in layer i-1
     for (let i = 1; i < layers.length; i++) {
-      layers[i] = reorderLayer(
-        layers[i - 1],
-        layers[i],
-        edges,
-        'down',
-        heuristic,
-        gWithDummies,
-        laneOrder
-      );
-      if (useTranspose) {
-        layers[i] = transposeImprove(layers[i - 1], layers[i], edges, layers[i + 1], gWithDummies);
-      }
+      layers[i] = reorderLayer(layers[i - 1], layers[i], edges, 'down', gWithDummies, laneOrder);
+      layers[i] = transposeImprove(layers[i - 1], layers[i], edges, layers[i + 1], gWithDummies);
     }
     // Bottom-up: reorder layer i based on neighbors in layer i+1
     for (let i = layers.length - 2; i >= 0; i--) {
-      layers[i] = reorderLayer(
-        layers[i + 1],
-        layers[i],
-        edges,
-        'up',
-        heuristic,
-        gWithDummies,
-        laneOrder
-      );
-      if (useTranspose) {
-        layers[i] = transposeImprove(layers[i + 1], layers[i], edges, layers[i - 1], gWithDummies);
-      }
+      layers[i] = reorderLayer(layers[i + 1], layers[i], edges, 'up', gWithDummies, laneOrder);
+      layers[i] = transposeImprove(layers[i + 1], layers[i], edges, layers[i - 1], gWithDummies);
     }
   }
 

@@ -16,10 +16,6 @@ export interface LayoutOptions {
   compactSingleInput?: boolean; // default true for compact swimlanes
   ignoreCrossLaneEdges?: boolean;
   optimizeRanksByCrossings?: boolean;
-  // Ordering
-  sweeps?: number;
-  useTranspose?: boolean;
-  heuristic?: 'median' | 'barycenter';
   // Coordinates
   layerGap?: number;
   nodeGap?: number;
@@ -58,11 +54,7 @@ export function sugiyamaLayout(g: Graph, opts?: LayoutOptions): LayoutResult {
       });
   const { layering: properLayering, graphWithDummies } = makeProperLayering(layering, gAcyclic);
   // Phase 3: ordering
-  const ordered = orderLayers(properLayering, graphWithDummies, {
-    sweeps: opts?.sweeps,
-    useTranspose: opts?.useTranspose,
-    heuristic: opts?.heuristic,
-  });
+  const ordered = orderLayers(properLayering, graphWithDummies);
 
   // Phase 4: coordinates
   const coords0 = assignCoordinates(ordered, graphWithDummies, {

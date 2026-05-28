@@ -23,20 +23,6 @@ export const PRECISION = {
 } as const;
 
 /**
- * Layer ordering constants
- */
-export const ORDERING = {
-  /** Default number of sweep iterations for crossing minimization */
-  DEFAULT_SWEEPS: 3,
-
-  /** Default heuristic for vertex ordering */
-  DEFAULT_HEURISTIC: 'median' as const,
-
-  /** Whether to use transpose improvement by default */
-  DEFAULT_USE_TRANSPOSE: true,
-} as const;
-
-/**
  * Layer assignment constants
  */
 export const LAYERING = {

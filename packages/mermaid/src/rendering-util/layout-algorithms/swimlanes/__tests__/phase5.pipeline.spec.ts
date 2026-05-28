@@ -68,7 +68,7 @@ describe('Phase 5 — Pipeline (sugiyamaLayout)', () => {
         ['C', 'Z'],
       ]
     );
-    const res = sugiyamaLayout(g, { sweeps: 2, useTranspose: true });
+    const res = sugiyamaLayout(g);
     const crossings = totalCrossings(res.ordered.layers, g.edges);
     expect(crossings).toBe(0);
   });

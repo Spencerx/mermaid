@@ -36,11 +36,7 @@ describe('Phase 3 — Vertex Ordering', () => {
       rankOf: { U1: 0, U2: 0, L1: 1, L2: 1 },
       dummy: new Set(),
     };
-    const ordered = orderLayers(layering, g, {
-      sweeps: 2,
-      useTranspose: true,
-      heuristic: 'median',
-    });
+    const ordered = orderLayers(layering, g);
     expect(ordered.layers[0]).toEqual(['U1', 'U2']);
     expect(ordered.layers[1]).toEqual(['L1', 'L2']);
     expect(totalCrossings(ordered.layers, g.edges)).toBe(0);
@@ -63,19 +59,9 @@ describe('Phase 3 — Vertex Ordering', () => {
       rankOf: { A: 0, B: 0, C: 0, d: 1, e: 1, f: 1 },
       dummy: new Set(),
     };
-    const noTranspose = orderLayers(layering, g, {
-      sweeps: 1,
-      useTranspose: false,
-      heuristic: 'median',
-    });
-    const withTranspose = orderLayers(layering, g, {
-      sweeps: 1,
-      useTranspose: true,
-      heuristic: 'median',
-    });
-    const cxNo = totalCrossings(noTranspose.layers, g.edges);
-    const cxYes = totalCrossings(withTranspose.layers, g.edges);
-    expect(cxYes).toBeLessThanOrEqual(cxNo);
+    const before = totalCrossings(layering.layers, g.edges);
+    const ordered = orderLayers(layering, g);
+    expect(totalCrossings(ordered.layers, g.edges)).toBeLessThanOrEqual(before);
   });
 
   it('Deterministic results on repeated runs', () => {
@@ -93,8 +79,8 @@ describe('Phase 3 — Vertex Ordering', () => {
       rankOf: { U1: 0, U2: 0, U3: 0, L1: 1, L2: 1, L3: 1 },
       dummy: new Set(),
     };
-    const a = orderLayers(layering, g, { sweeps: 3, useTranspose: true, heuristic: 'median' });
-    const b = orderLayers(layering, g, { sweeps: 3, useTranspose: true, heuristic: 'median' });
+    const a = orderLayers(layering, g);
+    const b = orderLayers(layering, g);
     expect(a.layers).toEqual(b.layers);
   });
 
@@ -118,11 +104,7 @@ describe('Phase 3 — Vertex Ordering', () => {
     };
 
     const before = totalCrossings(layering.layers, g.edges);
-    const ordered = orderLayers(layering, g, {
-      sweeps: 2,
-      useTranspose: true,
-      heuristic: 'median',
-    });
+    const ordered = orderLayers(layering, g);
     const after = totalCrossings(ordered.layers, g.edges);
 
     expect(ordered.layers[1]).toEqual(['K', 'J']);

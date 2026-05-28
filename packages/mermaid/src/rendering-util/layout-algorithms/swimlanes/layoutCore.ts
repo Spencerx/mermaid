@@ -35,9 +35,6 @@ export function runSwimlaneLayoutCore(data4Layout: LayoutData): SwimlaneDirectio
   const { ordered, coordinates } = sugiyamaLayout(g, {
     nodeGap,
     layerGap,
-    sweeps: 3,
-    useTranspose: true,
-    heuristic: 'median',
     straightenLongEdges: true,
     ignoreCrossLaneEdges,
     optimizeRanksByCrossings,
