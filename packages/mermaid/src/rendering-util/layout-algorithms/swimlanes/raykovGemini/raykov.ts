@@ -1725,6 +1725,25 @@ export function routeEdgesOrthogonal(data: LayoutData, direction?: string): Layo
     move(s2, avail !== -1 ? avail : createNewTrack(s1.pipe));
   };
 
+  const resolveHandleConflicts = (handles: RoutedSegment[]): number => {
+    let crossings = 0;
+    for (let i = 0; i < handles.length; i++) {
+      for (let j = i + 1; j < handles.length; j++) {
+        const h1 = handles[i];
+        const h2 = handles[j];
+        if (h1.pipe !== h2.pipe) {
+          continue;
+        }
+
+        if (segmentsConflict(h1, h2)) {
+          crossings++;
+          resolveTrackConflict(h1, h2, moveSegmentChainToTrack);
+        }
+      }
+    }
+    return crossings;
+  };
+
   interface DestInfo {
     dest: number;
     deviation: number;
@@ -1791,7 +1810,7 @@ export function routeEdgesOrthogonal(data: LayoutData, direction?: string): Layo
       return Math.abs(dx) + Math.abs(dy);
     };
 
-    for (const [_, grp] of edgesBySource) {
+    for (const grp of edgesBySource.values()) {
       // Sort by continuity: prefer edges that continue straight from previous segment
       grp.sort((a, b) => {
         // 0. Destination-aware ordering: keep near-center edges on the center track.
@@ -1839,21 +1858,7 @@ export function routeEdgesOrthogonal(data: LayoutData, direction?: string): Layo
       });
 
       const handles = grp.map((ei) => allRoutedSegments[edgeSegmentIndices[ei][0]]);
-      for (let i = 0; i < handles.length; i++) {
-        for (let j = i + 1; j < handles.length; j++) {
-          const h1 = handles[i];
-          const h2 = handles[j];
-          // Resolve if different pipes, OR same pipe and same track (overlap), OR same pipe different tracks and crossing adjacent
-          if (h1.pipe !== h2.pipe) {
-            continue;
-          }
-
-          if (segmentsConflict(h1, h2)) {
-            crossings++;
-            resolveTrackConflict(h1, h2, moveSegmentChainToTrack);
-          }
-        }
-      }
+      crossings += resolveHandleConflicts(handles);
     }
     return crossings;
   };
@@ -1875,7 +1880,7 @@ export function routeEdgesOrthogonal(data: LayoutData, direction?: string): Layo
       edgesByTarget.get(e.end)!.push(i);
     }
 
-    for (const [_, grp] of edgesByTarget) {
+    for (const grp of edgesByTarget.values()) {
       // Sort by continuity: prefer edges that align with their previous segment
       grp.sort((a, b) => {
         const getDist = (edgeIdx: number) => {
@@ -1995,20 +2000,7 @@ export function routeEdgesOrthogonal(data: LayoutData, direction?: string): Layo
       const handles = grp.map(
         (ei) => allRoutedSegments[edgeSegmentIndices[ei][edgeSegmentIndices[ei].length - 1]]
       );
-      for (let i = 0; i < handles.length; i++) {
-        for (let j = i + 1; j < handles.length; j++) {
-          const h1 = handles[i];
-          const h2 = handles[j];
-          if (h1.pipe !== h2.pipe) {
-            continue;
-          }
-
-          if (segmentsConflict(h1, h2)) {
-            crossings++;
-            resolveTrackConflict(h1, h2, moveSegmentChainToTrack);
-          }
-        }
-      }
+      crossings += resolveHandleConflicts(handles);
     }
     return crossings;
   };
