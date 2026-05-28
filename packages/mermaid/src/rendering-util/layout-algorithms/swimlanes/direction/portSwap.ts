@@ -1,7 +1,38 @@
 // cspell:ignore Battista Eades Eiglsperger Hegemann Kandinsky segs Siebenhaller Tamassia Tollis Fößmeier
-import { log } from '../../../../logger.js';
+import type { Edge, Node } from '../../../types.js';
 
-const SWIMLANE_DIR_LOG_PREFIX = 'SWIMLANE_DIR';
+const EPS = 1e-6;
+// δ_s — the Kandinsky port-spacing constant (Fößmeier–Kaufmann 1995;
+// Siebenhaller dissertation §6.1.2.2). When this pass places a second
+// edge on a face already occupied by a sibling centered at delta=0,
+// the canonical pairing is (0, ±δ_s) — full δ_s separation between
+// port centers, not δ_s/2. `straightenCollinearSiblingDetours` uses δ_s/2
+// because that pass shifts BOTH members of a collinear pair
+// symmetrically (to ±δ_s/2, separation δ_s); this pass shifts only
+// the single edge being swapped, so it must move the full δ_s to
+// preserve the same canonical spacing.
+const MIN_PORT_SPACING = 8;
+const PORT_SHIFT = MIN_PORT_SPACING;
+const TRY_DELTAS = [0, PORT_SHIFT, -PORT_SHIFT, 2 * PORT_SHIFT, -2 * PORT_SHIFT];
+
+interface PointLite {
+  x: number;
+  y: number;
+}
+
+interface RectLite {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+interface NodeInfo {
+  id: string;
+  cx: number;
+  cy: number;
+  rect: RectLite;
+}
 
 /**
  * Iter 17 — port-swap a 4-point H-V-H / V-H-V edge to a 3-point L-shape
@@ -78,65 +109,34 @@ const SWIMLANE_DIR_LOG_PREFIX = 'SWIMLANE_DIR';
  * direction to be preserved; this pass explicitly CHANGES the first
  * direction — the whole point.
  */
-export function portSwapToLShape(edges: any[], nodes: any[]): void {
-  const EPS = 1e-6;
-  // δ_s — the Kandinsky port-spacing constant (Fößmeier–Kaufmann 1995;
-  // Siebenhaller dissertation §6.1.2.2). When this pass places a second
-  // edge on a face already occupied by a sibling centered at delta=0,
-  // the canonical pairing is (0, ±δ_s) — full δ_s separation between
-  // port centers, not δ_s/2. `straightenCollinearSiblingDetours` uses δ_s/2
-  // because that pass shifts BOTH members of a collinear pair
-  // symmetrically (to ±δ_s/2, separation δ_s); this pass shifts only
-  // the single edge being swapped, so it must move the full δ_s to
-  // preserve the same canonical spacing.
-  const MIN_PORT_SPACING = 8;
-  const PORT_SHIFT = MIN_PORT_SPACING;
-
-  interface RectLite {
-    left: number;
-    right: number;
-    top: number;
-    bottom: number;
-  }
-  interface NodeInfo {
-    id: string;
-    cx: number;
-    cy: number;
-    rect: RectLite;
-  }
-
+export function portSwapToLShape(edges: Edge[], nodes: Node[]): void {
   const nodeInfoById = new Map<string, NodeInfo>();
   const realNodeRects: { id: string; rect: RectLite }[] = [];
   for (const n of nodes) {
-    if ((n as { isGroup?: boolean }).isGroup) {
+    if (n.isGroup) {
       continue;
     }
-    if ((n as { isEdgeLabel?: boolean }).isEdgeLabel) {
+    if (n.isEdgeLabel) {
       continue;
     }
-    const cx = (n as { x?: number }).x ?? 0;
-    const cy = (n as { y?: number }).y ?? 0;
-    const w = (n as { width?: number }).width ?? 0;
-    const h = (n as { height?: number }).height ?? 0;
+    const cx = n.x ?? 0;
+    const cy = n.y ?? 0;
+    const w = n.width ?? 0;
+    const h = n.height ?? 0;
     if (w <= 0 || h <= 0) {
       continue;
     }
-    const id = String((n as { id?: string }).id ?? '');
     const rect: RectLite = {
       left: cx - w / 2,
       right: cx + w / 2,
       top: cy - h / 2,
       bottom: cy + h / 2,
     };
-    nodeInfoById.set(id, { id, cx, cy, rect });
-    realNodeRects.push({ id, rect });
+    nodeInfoById.set(n.id, { id: n.id, cx, cy, rect });
+    realNodeRects.push({ id: n.id, rect });
   }
 
-  const segmentHitsNode = (
-    a: { x: number; y: number },
-    b: { x: number; y: number },
-    excludeIds: string[]
-  ): boolean => {
+  const segmentHitsNode = (a: PointLite, b: PointLite, excludeIds: string[]): boolean => {
     const minX = Math.min(a.x, b.x);
     const maxX = Math.max(a.x, b.x);
     const minY = Math.min(a.y, b.y);
@@ -161,10 +161,10 @@ export function portSwapToLShape(edges: any[], nodes: any[]): void {
   // T-intersections count), same semantics as scoreLayout.segmentsCross
   // and as the helper embedded in `straightenCollinearSiblingDetours`.
   const segmentsCrossOrth = (
-    a1: { x: number; y: number },
-    b1: { x: number; y: number },
-    a2: { x: number; y: number },
-    b2: { x: number; y: number }
+    a1: PointLite,
+    b1: PointLite,
+    a2: PointLite,
+    b2: PointLite
   ): boolean => {
     const s1H = Math.abs(a1.y - b1.y) < EPS;
     const s1V = Math.abs(a1.x - b1.x) < EPS;
@@ -208,10 +208,10 @@ export function portSwapToLShape(edges: any[], nodes: any[]): void {
   // Kandinsky face-capacity (two ports at the same offset on the same
   // face).
   const segmentsOverlapAxis = (
-    a1: { x: number; y: number },
-    b1: { x: number; y: number },
-    a2: { x: number; y: number },
-    b2: { x: number; y: number }
+    a1: PointLite,
+    b1: PointLite,
+    a2: PointLite,
+    b2: PointLite
   ): boolean => {
     const s1H = Math.abs(a1.y - b1.y) < EPS;
     const s1V = Math.abs(a1.x - b1.x) < EPS;
@@ -235,10 +235,10 @@ export function portSwapToLShape(edges: any[], nodes: any[]): void {
   };
 
   for (const edge of edges) {
-    if ((edge as { isLayoutOnly?: boolean }).isLayoutOnly) {
+    if (edge.isLayoutOnly) {
       continue;
     }
-    const pts = (edge as { points?: { x: number; y: number }[] }).points;
+    const pts = edge.points;
     if (!pts || pts.length < 4) {
       continue;
     }
@@ -247,7 +247,7 @@ export function portSwapToLShape(edges: any[], nodes: any[]): void {
     // produce duplicates). We operate on the DEDUPED polyline but write
     // back without duplicates too — the rendering-handoff pass later
     // re-duplicates endpoints for the intersect-rect guard.
-    const deduped: { x: number; y: number }[] = [];
+    const deduped: PointLite[] = [];
     for (const p of pts) {
       const last = deduped.length > 0 ? deduped[deduped.length - 1] : undefined;
       if (!last || Math.abs(p.x - last.x) > EPS || Math.abs(p.y - last.y) > EPS) {
@@ -271,9 +271,8 @@ export function portSwapToLShape(edges: any[], nodes: any[]): void {
       continue;
     }
 
-    const srcId = (edge as { start?: string }).start;
-    const dstId = (edge as { end?: string }).end;
-    const edgeId = String((edge as { id?: string }).id ?? '');
+    const srcId = edge.start;
+    const dstId = edge.end;
     if (!srcId || !dstId) {
       continue;
     }
@@ -296,15 +295,13 @@ export function portSwapToLShape(edges: any[], nodes: any[]): void {
     //   new p1 = (src.cx + δ, p3.y)
     //   new p2 = p3
     // V-H-V symmetric.
-    let newPts: { x: number; y: number }[] | undefined;
+    let newPts: PointLite[] | undefined;
     const srcRect = srcInfo.rect;
 
-    const tryDeltas = [0, PORT_SHIFT, -PORT_SHIFT, 2 * PORT_SHIFT, -2 * PORT_SHIFT];
-
-    for (const delta of tryDeltas) {
-      let np0: { x: number; y: number };
-      let np1: { x: number; y: number };
-      let np2: { x: number; y: number };
+    for (const delta of TRY_DELTAS) {
+      let np0: PointLite;
+      let np1: PointLite;
+      let np2: PointLite;
 
       if (isHVH) {
         const dstBelow = dstInfo.cy > srcInfo.cy;
@@ -365,10 +362,10 @@ export function portSwapToLShape(edges: any[], nodes: any[]): void {
         if (other === edge) {
           continue;
         }
-        if ((other as { isLayoutOnly?: boolean }).isLayoutOnly) {
+        if (other.isLayoutOnly) {
           continue;
         }
-        const opts = (other as { points?: { x: number; y: number }[] }).points;
+        const opts = other.points;
         if (!opts || opts.length < 2) {
           continue;
         }
@@ -415,15 +412,11 @@ export function portSwapToLShape(edges: any[], nodes: any[]): void {
       } else {
         newPts = [np0, np1, np2];
       }
-      log.debug(
-        SWIMLANE_DIR_LOG_PREFIX,
-        `portSwapToLShape: swapped ${edgeId} src port → ${isHVH ? 'N/S' : 'E/W'} face (delta=${delta}); bends ${deduped.length - 2} → ${newPts.length - 2}`
-      );
       break;
     }
 
     if (newPts) {
-      (edge as { points?: { x: number; y: number }[] }).points = newPts;
+      edge.points = newPts;
     }
   }
 }
