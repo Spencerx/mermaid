@@ -9,16 +9,6 @@ export interface CoordOptions {
   direction?: 'TB' | 'LR' | 'BT' | 'RL'; // layout direction for proper spacing
 }
 
-function computeRankOf(layers: NodeId[][]): Record<NodeId, number> {
-  const rankOf: Record<NodeId, number> = Object.create(null);
-  for (const [i, layer] of layers.entries()) {
-    for (const v of layer) {
-      rankOf[v] = i;
-    }
-  }
-  return rankOf;
-}
-
 export function assignCoordinates(
   ordered: OrderedLayers,
   gWithDummies: Graph,
@@ -32,7 +22,6 @@ export function assignCoordinates(
   const isHorizontal = direction === 'LR' || direction === 'RL';
 
   const layers = ordered.layers;
-  computeRankOf(layers);
 
   const x: Record<NodeId, number> = Object.create(null);
   const y: Record<NodeId, number> = Object.create(null);
