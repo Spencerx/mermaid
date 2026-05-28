@@ -1,6 +1,12 @@
 // cspell:ignore Wybrow Hegemann Gladisch reanchor
 import type { Edge, Node } from '../../../types.js';
-import { segmentBoundsOverlapRect } from './geometry.js';
+import {
+  dedupeConsecutivePoints,
+  orthogonalSegmentsStrictlyCross as segmentsCross,
+  sameX,
+  sameY,
+  segmentBoundsOverlapRect,
+} from './geometry.js';
 
 const MIN_CLEARANCE = 20; // Gladisch δ — safety gap
 const EPS = 1e-3;
@@ -23,14 +29,6 @@ interface RectEntry {
   rect: RectLite;
 }
 
-function sameX(a: PointLite, b: PointLite): boolean {
-  return Math.abs(a.x - b.x) < EPS;
-}
-
-function sameY(a: PointLite, b: PointLite): boolean {
-  return Math.abs(a.y - b.y) < EPS;
-}
-
 function shiftedSegmentsHitRect(
   before: PointLite,
   newA: PointLite,
@@ -45,41 +43,8 @@ function shiftedSegmentsHitRect(
   );
 }
 
-// Orthogonal segment crossing test (strict interior crossing of one
-// horizontal with one vertical; shared endpoints and collinear
-// overlaps are not considered crossings).
-function segmentsCross(a1: PointLite, a2: PointLite, b1: PointLite, b2: PointLite): boolean {
-  const aHoriz = sameY(a1, a2);
-  const aVert = sameX(a1, a2);
-  const bHoriz = sameY(b1, b2);
-  const bVert = sameX(b1, b2);
-  if ((aHoriz && bVert) || (aVert && bHoriz)) {
-    const hA = aHoriz ? { a: a1, b: a2 } : { a: b1, b: b2 };
-    const vA = aHoriz ? { a: b1, b: b2 } : { a: a1, b: a2 };
-    const hY = hA.a.y;
-    const hXmin = Math.min(hA.a.x, hA.b.x);
-    const hXmax = Math.max(hA.a.x, hA.b.x);
-    const vX = vA.a.x;
-    const vYmin = Math.min(vA.a.y, vA.b.y);
-    const vYmax = Math.max(vA.a.y, vA.b.y);
-    return vX > hXmin + EPS && vX < hXmax - EPS && hY > vYmin + EPS && hY < vYmax - EPS;
-  }
-  return false;
-}
-
 function segmentKey(p: PointLite, q: PointLite): string {
   return `${p.x.toFixed(3)},${p.y.toFixed(3)}|${q.x.toFixed(3)},${q.y.toFixed(3)}`;
-}
-
-function dedupeConsecutivePoints(points: PointLite[]): PointLite[] {
-  const deduped: PointLite[] = [];
-  for (const p of points) {
-    const last = deduped.length > 0 ? deduped[deduped.length - 1] : undefined;
-    if (!last || Math.abs(p.x - last.x) > EPS || Math.abs(p.y - last.y) > EPS) {
-      deduped.push(p);
-    }
-  }
-  return deduped;
 }
 
 function pointOnSegment(x: number, y: number, p: PointLite, q: PointLite): boolean {

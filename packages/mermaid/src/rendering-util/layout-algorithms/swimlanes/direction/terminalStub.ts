@@ -1,8 +1,9 @@
 // cspell:ignore Hegemann Wybrow penult
-import { log } from '../../../../logger.js';
-import { segmentBoundsOverlapRect } from './geometry.js';
-
-const SWIMLANE_DIR_LOG_PREFIX = 'SWIMLANE_DIR';
+import {
+  dedupeConsecutivePoints,
+  orthogonalSegmentsStrictlyCross as segmentsCross,
+  segmentBoundsOverlapRect,
+} from './geometry.js';
 
 /**
  * Iter 16 — collapse a short terminal stub at an edge's destination by
@@ -71,39 +72,6 @@ export function collapseShortTerminalStub(edges: any[], nodeByIdMap: Map<string,
     }
   }
 
-  // Orthogonal segment pair intersection test (T-junctions and crossings).
-  // Returns true only when one is horizontal and the other vertical AND they
-  // cross strictly in the interior; collinear / shared-endpoint cases
-  // are not considered crossings here.
-  const segmentsCross = (
-    a1: { x: number; y: number },
-    a2: { x: number; y: number },
-    b1: { x: number; y: number },
-    b2: { x: number; y: number }
-  ): boolean => {
-    const aHoriz = Math.abs(a1.y - a2.y) < EPS_LOCAL;
-    const aVert = Math.abs(a1.x - a2.x) < EPS_LOCAL;
-    const bHoriz = Math.abs(b1.y - b2.y) < EPS_LOCAL;
-    const bVert = Math.abs(b1.x - b2.x) < EPS_LOCAL;
-    if ((aHoriz && bVert) || (aVert && bHoriz)) {
-      const hA = aHoriz ? { a: a1, b: a2 } : { a: b1, b: b2 };
-      const vA = aHoriz ? { a: b1, b: b2 } : { a: a1, b: a2 };
-      const hY = hA.a.y;
-      const hXmin = Math.min(hA.a.x, hA.b.x);
-      const hXmax = Math.max(hA.a.x, hA.b.x);
-      const vX = vA.a.x;
-      const vYmin = Math.min(vA.a.y, vA.b.y);
-      const vYmax = Math.max(vA.a.y, vA.b.y);
-      return (
-        vX > hXmin + EPS_LOCAL &&
-        vX < hXmax - EPS_LOCAL &&
-        hY > vYmin + EPS_LOCAL &&
-        hY < vYmax - EPS_LOCAL
-      );
-    }
-    return false;
-  };
-
   for (const edge of edges) {
     if ((edge as { isLayoutOnly?: boolean }).isLayoutOnly) {
       continue;
@@ -114,13 +82,7 @@ export function collapseShortTerminalStub(edges: any[], nodeByIdMap: Map<string,
     }
 
     // Dedupe consecutive equal points so we measure the real last segment.
-    const pts: { x: number; y: number }[] = [];
-    for (const p of rawPts) {
-      const last = pts.length > 0 ? pts[pts.length - 1] : undefined;
-      if (!last || Math.abs(p.x - last.x) > EPS_LOCAL || Math.abs(p.y - last.y) > EPS_LOCAL) {
-        pts.push(p);
-      }
-    }
+    const pts = dedupeConsecutivePoints(rawPts, EPS_LOCAL);
     if (pts.length < 4) {
       continue;
     }
@@ -157,7 +119,6 @@ export function collapseShortTerminalStub(edges: any[], nodeByIdMap: Map<string,
 
     const dstId = (edge as { end?: string }).end;
     const srcId = (edge as { start?: string }).start;
-    const edgeId = String((edge as { id?: string }).id ?? '');
     const dst = dstId ? nodeByIdMap.get(dstId) : undefined;
     if (!dst) {
       continue;
@@ -266,7 +227,7 @@ export function collapseShortTerminalStub(edges: any[], nodeByIdMap: Map<string,
         if (selfSegments.has(ownSegmentKey(a, b))) {
           continue;
         }
-        if (segmentsCross(newPrev, newEnd, a, b)) {
+        if (segmentsCross(newPrev, newEnd, a, b, EPS_LOCAL)) {
           blocked = true;
           break;
         }
@@ -318,7 +279,7 @@ export function collapseShortTerminalStub(edges: any[], nodeByIdMap: Map<string,
           if (selfSegments.has(ownSegmentKey(a, b))) {
             continue;
           }
-          if (segmentsCross(beforePrev, newPrev, a, b)) {
+          if (segmentsCross(beforePrev, newPrev, a, b, EPS_LOCAL)) {
             blocked = true;
             break;
           }
@@ -382,10 +343,5 @@ export function collapseShortTerminalStub(edges: any[], nodeByIdMap: Map<string,
         }
       }
     }
-
-    log.debug(
-      SWIMLANE_DIR_LOG_PREFIX,
-      `collapseShortTerminalStub: rewrote ${edgeId} — stub was ${lastLen.toFixed(2)}, retargeted dst face`
-    );
   }
 }

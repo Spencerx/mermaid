@@ -114,6 +114,34 @@ export function orthogonalSegmentsCross(
   return !(matchesHorizEndpoint && matchesVertEndpoint);
 }
 
+export function orthogonalSegmentsStrictlyCross(
+  a1: Point,
+  b1: Point,
+  a2: Point,
+  b2: Point,
+  epsilon = EPS
+): boolean {
+  const aHoriz = sameY(a1, b1, epsilon);
+  const aVert = sameX(a1, b1, epsilon);
+  const bHoriz = sameY(a2, b2, epsilon);
+  const bVert = sameX(a2, b2, epsilon);
+  if (!((aHoriz && bVert) || (aVert && bHoriz))) {
+    return false;
+  }
+
+  const horiz = aHoriz ? { a: a1, b: b1 } : { a: a2, b: b2 };
+  const vert = aHoriz ? { a: a2, b: b2 } : { a: a1, b: b1 };
+  const hY = horiz.a.y;
+  const hXmin = Math.min(horiz.a.x, horiz.b.x);
+  const hXmax = Math.max(horiz.a.x, horiz.b.x);
+  const vX = vert.a.x;
+  const vYmin = Math.min(vert.a.y, vert.b.y);
+  const vYmax = Math.max(vert.a.y, vert.b.y);
+  return (
+    vX > hXmin + epsilon && vX < hXmax - epsilon && hY > vYmin + epsilon && hY < vYmax - epsilon
+  );
+}
+
 function strictlyBetween(value: number, a: number, b: number): boolean {
   const lo = Math.min(a, b);
   const hi = Math.max(a, b);
