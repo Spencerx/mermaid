@@ -63,40 +63,6 @@ export function validateSwimlanesLayout(layout: LayoutData): ValidationIssue[] {
   const nodeRects = collectLayoutNodeRects(nodes);
 
   const epsilon = 1; // tighter than the fix pass: catch marginal overlaps
-
-  for (const edge of edges) {
-    if (edge.isLayoutOnly) {
-      continue;
-    }
-    const points = edge.points as { x: number; y: number }[] | undefined;
-    if (!points || points.length < 2) {
-      continue;
-    }
-    const edgeStart = edge.start as string | undefined;
-    const edgeEnd = edge.end as string | undefined;
-    const ownLabelId = edge.labelNodeId as string | undefined;
-
-    for (const rect of nodeRects) {
-      if (rect.nodeId === edgeStart || rect.nodeId === edgeEnd) {
-        continue;
-      }
-      if (ownLabelId && rect.nodeId === ownLabelId) {
-        continue;
-      }
-      for (let i = 0; i < points.length - 1; i++) {
-        if (segmentBoundsOverlapRect(points[i], points[i + 1], rect, -epsilon)) {
-          issues.push({
-            type: 'edge-node-overlap',
-            edgeId: edge.id ?? `${edgeStart}->${edgeEnd}`,
-            targetId: rect.nodeId,
-            detail: `segment ${i} passes through node "${rect.nodeId}"`,
-          });
-          break;
-        }
-      }
-    }
-  }
-
   const edgeSegments: {
     edgeId: string;
     start: string;
@@ -113,12 +79,36 @@ export function validateSwimlanesLayout(layout: LayoutData): ValidationIssue[] {
     if (!points || points.length < 2) {
       continue;
     }
-    const eid = (edge.id as string) ?? `${edge.start}->${edge.end}`;
+    const edgeStart = edge.start as string | undefined;
+    const edgeEnd = edge.end as string | undefined;
+    const ownLabelId = edge.labelNodeId as string | undefined;
+    const edgeId = (edge.id as string) ?? `${edgeStart}->${edgeEnd}`;
+
+    for (const rect of nodeRects) {
+      if (rect.nodeId === edgeStart || rect.nodeId === edgeEnd) {
+        continue;
+      }
+      if (ownLabelId && rect.nodeId === ownLabelId) {
+        continue;
+      }
+      for (let i = 0; i < points.length - 1; i++) {
+        if (segmentBoundsOverlapRect(points[i], points[i + 1], rect, -epsilon)) {
+          issues.push({
+            type: 'edge-node-overlap',
+            edgeId,
+            targetId: rect.nodeId,
+            detail: `segment ${i} passes through node "${rect.nodeId}"`,
+          });
+          break;
+        }
+      }
+    }
+
     for (let i = 0; i < points.length - 1; i++) {
       edgeSegments.push({
-        edgeId: eid,
-        start: edge.start as string,
-        end: edge.end as string,
+        edgeId,
+        start: edgeStart!,
+        end: edgeEnd!,
         p1: points[i],
         p2: points[i + 1],
       });
