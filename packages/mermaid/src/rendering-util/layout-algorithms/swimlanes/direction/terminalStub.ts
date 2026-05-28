@@ -2,8 +2,12 @@
 import {
   collectNodeRectEntries,
   dedupeConsecutivePoints,
+  isHorizontalSegment,
+  isVerticalSegment,
   orthogonalSegmentsStrictlyCross as segmentsCross,
   rectFromCenterSize,
+  sameX,
+  sameY,
   segmentBoundsOverlapRect,
 } from './geometry.js';
 import type { Point } from './geometry.js';
@@ -84,10 +88,10 @@ export function collapseShortTerminalStub(edges: any[], nodeByIdMap: Map<string,
       continue;
     }
 
-    const lastIsHoriz = Math.abs(lastDy) < EPS_LOCAL && Math.abs(lastDx) > EPS_LOCAL;
-    const lastIsVert = Math.abs(lastDx) < EPS_LOCAL && Math.abs(lastDy) > EPS_LOCAL;
-    const penultIsHoriz = Math.abs(penultDy) < EPS_LOCAL && Math.abs(penultDx) > EPS_LOCAL;
-    const penultIsVert = Math.abs(penultDx) < EPS_LOCAL && Math.abs(penultDy) > EPS_LOCAL;
+    const lastIsHoriz = isHorizontalSegment(penultPt, endPt, EPS_LOCAL);
+    const lastIsVert = isVerticalSegment(penultPt, endPt, EPS_LOCAL);
+    const penultIsHoriz = isHorizontalSegment(prevPt, penultPt, EPS_LOCAL);
+    const penultIsVert = isVerticalSegment(prevPt, penultPt, EPS_LOCAL);
     if (!((lastIsHoriz && penultIsVert) || (lastIsVert && penultIsHoriz))) {
       continue;
     }
@@ -272,8 +276,8 @@ export function collapseShortTerminalStub(edges: any[], nodeByIdMap: Map<string,
             const a = newPts[i];
             const b = newPts[i + 1];
             const segLen = Math.hypot(b.x - a.x, b.y - a.y);
-            const isHoriz = Math.abs(a.y - b.y) < EPS_LOCAL;
-            const isVert = Math.abs(a.x - b.x) < EPS_LOCAL;
+            const isHoriz = sameY(a, b, EPS_LOCAL);
+            const isVert = sameX(a, b, EPS_LOCAL);
             // Require axis-aligned and long enough to hold the label.
             const fits = (isHoriz && segLen >= lw + 2) || (isVert && segLen >= lh + 2);
             if (!fits) {
