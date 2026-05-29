@@ -1457,5 +1457,20 @@ flowchart TD
         {}
       );
     });
+
+    it('should redirect an edge targeting a deeply nested node to the outermost collapsed subgraph', () => {
+      imgSnapshotTest(
+        `flowchart TD
+        subgraph outer [Outer]
+          subgraph inner [Inner]
+            A --> B
+          end
+        end
+        Start --> A
+        outer@{ view: collapsed }
+        `,
+        {}
+      );
+    });
   });
 });
