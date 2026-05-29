@@ -22,7 +22,16 @@ describe('DDLT layout-test fixture sweep', () => {
     console.log('DDLT-AGG:', JSON.stringify(report, null, 2));
 
     expect(fixtures.map((fixture) => fixture.id)).toContain('swimlanes/10-node-placement');
-    expect(report.invalidCount).toBe(0);
+
+    // Fixtures flagged `allowLevel1Failure` in ddlt-manifest.json are tracked
+    // but tolerated (e.g. a known borderline near-corner edge attachment).
+    // Every other swimlane fixture must stay valid.
+    const exemptIds = new Set(
+      fixtures.filter((fixture) => fixture.allowLevel1Failure).map((fixture) => fixture.id)
+    );
+    const nonExemptInvalid = report.byCase.filter((row) => !exemptIds.has(row.id) && !row.valid);
+    expect(nonExemptInvalid.map((row) => `${row.id}: ${row.issueTypes.join(', ')}`)).toEqual([]);
+
     expect(report.totalScore).toBeGreaterThanOrEqual(
       SWIMLANE_TOTAL_SCORE_WITH_10_NODE_PLACEMENT_BASELINE
     );

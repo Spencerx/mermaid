@@ -37,7 +37,11 @@ describe('Phase 5 — Pipeline (sugiyamaLayout)', () => {
         ['C', 'D'],
       ]
     );
-    const res = sugiyamaLayout(g, { nodeGap: 40, layerGap: 80 });
+    // This synthetic graph has no swimlanes, so exercise the plain (non
+    // lane-aware) layering. `ignoreCrossLaneEdges` now defaults to true, which
+    // routes through the lane-aware compactor and would treat this lane-less
+    // chain's edges as cross-lane (collapsing it to a single layer).
+    const res = sugiyamaLayout(g, { nodeGap: 40, layerGap: 80, ignoreCrossLaneEdges: false });
     expect(res.reversed.length).toBe(0);
     const y = res.coordinates.y;
     expect(y.A).toBe(0);

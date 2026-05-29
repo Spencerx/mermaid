@@ -75,7 +75,12 @@ const sameAxisOverlapLength = (a: PointLite, b: PointLite, c: PointLite, d: Poin
 };
 
 describe('postProcessSwimlaneLayout', () => {
-  it('continues reroute scanning against current edge points after each fix', () => {
+  // Skipped: this covered the generic obstacle-nudging reroute pass
+  // (direction/obstacleNudging.ts), removed in the swimlane size-reduction
+  // refactor. The remaining post-passes + the router handle real diagrams
+  // (validated by the swimlanes DDLT sweep). Restore if obstacle-nudging
+  // is reintroduced.
+  it.skip('continues reroute scanning against current edge points after each fix', () => {
     const blockerA = node('X', 100, 0);
     const blockerB = node('Y', 200, 0);
     const layout: LayoutData = {

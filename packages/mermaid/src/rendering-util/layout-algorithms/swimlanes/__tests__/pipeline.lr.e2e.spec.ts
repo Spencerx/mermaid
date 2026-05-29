@@ -50,6 +50,11 @@ function runSwimlanesPipeline(direction?: string): LayoutData {
   const { ordered, coordinates } = sugiyamaLayout(g, {
     nodeGap,
     layerGap,
+    // This bare chain has no swimlanes; use plain layering. The lane-aware
+    // default (ignoreCrossLaneEdges = true) would treat the chain's edges as
+    // cross-lane and collapse it to a single layer, defeating the TB/LR
+    // direction-spread comparison this test makes.
+    ignoreCrossLaneEdges: false,
   });
 
   writeBackToLayoutData(g, ordered, coordinates, { nodeGap, layerGap });
