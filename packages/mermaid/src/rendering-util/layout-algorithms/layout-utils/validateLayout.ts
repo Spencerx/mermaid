@@ -97,13 +97,16 @@ export type LayoutIssueType =
   | 'edge-port-direction-mismatch'
   | 'edge-same-port-departure'
   | 'edge-shared-attachment-point'
+  | 'edge-shared-projected-port'
   | 'edge-bend-near-endpoint'
   | 'edge-corner-connection'
   | 'edge-shared-subpath'
   | 'edge-border-hugging'
+  | 'node-border-hugging'
   | 'edge-label-off-edge'
   | 'edge-endpoint-inside-node'
-  | 'edge-label-overlaps-foreign-edge';
+  | 'edge-label-overlaps-foreign-edge'
+  | 'edge-label-overlaps-group-border';
 
 export interface Issue {
   type: LayoutIssueType;
@@ -311,6 +314,36 @@ function rectsOverlap(a: Rect, b: Rect): { overlapX: number; overlapY: number } 
   return { overlapX, overlapY };
 }
 
+/**
+ * Reconstruct an edge label's rectangle from the POST-FINALIZE overlay
+ * representation. `finalizeDummyLabelNodesToOverlayLabels` consumes the
+ * `edge-label-*` dummy nodes and re-attaches the label to its owning edge as
+ * `edge.label` + center `edge.x`/`edge.y` + measured `edge.width`/`edge.height`
+ * (finalizeOverlayLabels.ts). After the single-source-of-truth anchor pass
+ * (#18) `edge.x`/`edge.y` is the exact painted position, so this rect is
+ * what the browser actually renders.
+ */
+function labelRectForEdge(e: unknown): Rect | null {
+  const ed = e as { label?: unknown; x?: unknown; y?: unknown; width?: unknown; height?: unknown };
+  if (typeof ed.label !== 'string' || ed.label.length === 0) {
+    return null;
+  }
+  const { x, y, width: w, height: h } = ed;
+  if (
+    typeof x !== 'number' ||
+    typeof y !== 'number' ||
+    typeof w !== 'number' ||
+    typeof h !== 'number' ||
+    !Number.isFinite(x) ||
+    !Number.isFinite(y) ||
+    !(w > 0) ||
+    !(h > 0)
+  ) {
+    return null;
+  }
+  return { cx: x, cy: y, left: x - w / 2, right: x + w / 2, top: y - h / 2, bottom: y + h / 2 };
+}
+
 function _polylineIsOrthogonal(points: Point[]): boolean {
   for (let i = 0; i < points.length - 1; i++) {
     const a = points[i];
@@ -422,14 +455,18 @@ export function validateLayout(layout: LayoutData): ValidateLayoutResult {
 
   // Build obstacle rects (leaf nodes + label dummy nodes)
   const obstacleRects = new Map<string, Rect>();
+  const groupBorderRects = new Map<string, Rect>();
   for (const n of nodes) {
     if (n?.id == null) {
       continue;
     }
     if (isObstacle(n)) {
       obstacleRects.set(String(n.id), rectForNode(n));
+    } else if (n.isGroup) {
+      groupBorderRects.set(String(n.id), rectForNode(n));
     }
   }
+  const borderHugRects = new Map<string, Rect>([...obstacleRects, ...groupBorderRects]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // 1) Node overlap checks (keep existing)
@@ -489,6 +526,54 @@ export function validateLayout(layout: LayoutData): ValidateLayoutResult {
       overlapCount: overlapDetails.length,
       overlaps: overlapDetails.slice(0, 20), // Limit to first 20
     });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 1b) Node-vs-foreign-group border-hugging
+  //
+  // A non-group node whose own border runs ALONG the rendered border of a
+  // group it does not belong to (a sibling / foreign subgraph) for a
+  // significant length is a visual defect: the node visually merges into the
+  // subgraph frame. This is the node analogue of `edge-border-hugging` and
+  // reuses the same EPS_BORDER (proximity) / L_MIN_BORDER (run length)
+  // thresholds via `segmentBorderHugLength`. The node's four sides are tested
+  // as segments against each foreign group's border rect. The node's own
+  // ancestor (containing) groups are excluded — a child legitimately sits
+  // inside its parent group's frame.
+  // ─────────────────────────────────────────────────────────────────────────────
+  for (const n of nodes) {
+    if (n?.id == null || n.isGroup || isLabelDummy(n)) {
+      continue;
+    }
+    const nId = String(n.id);
+    const nr = nodeRects.get(nId);
+    if (!nr) {
+      continue;
+    }
+    const sides: Segment[] = [
+      { a: { x: nr.left, y: nr.top }, b: { x: nr.right, y: nr.top }, orientation: 'H' },
+      { a: { x: nr.left, y: nr.bottom }, b: { x: nr.right, y: nr.bottom }, orientation: 'H' },
+      { a: { x: nr.left, y: nr.top }, b: { x: nr.left, y: nr.bottom }, orientation: 'V' },
+      { a: { x: nr.right, y: nr.top }, b: { x: nr.right, y: nr.bottom }, orientation: 'V' },
+    ];
+    for (const [gId, gRect] of groupBorderRects) {
+      if (isAncestorGroup(gId, n, byId)) {
+        continue;
+      }
+      let maxHug = 0;
+      for (const side of sides) {
+        maxHug = Math.max(maxHug, segmentBorderHugLength(side, gRect));
+      }
+      if (maxHug >= L_MIN_BORDER) {
+        issues.push({
+          type: 'node-border-hugging',
+          message: `Node "${nId}" hugs border of group "${gId}" for ${maxHug.toFixed(1)} units`,
+          nodeIds: [nId, gId],
+          details: { hugLength: maxHug },
+        });
+        break; // one issue per node
+      }
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -769,10 +854,13 @@ export function validateLayout(layout: LayoutData): ValidateLayoutResult {
       }
     }
 
-    // Check edge-border-hugging against obstacles
+    // Check edge-border-hugging against obstacles and group borders. Groups
+    // are not generic obstacles because they contain child nodes and child
+    // edges, but their rendered border is still a physical boundary: an edge
+    // may cross it, but should not run along it for a long distance.
     // Note: We also check start/end nodes because an edge can hug its target's border
     // (e.g., run along the left side of the target before entering)
-    for (const [obstacleId, obstacleRect] of obstacleRects) {
+    for (const [obstacleId, obstacleRect] of borderHugRects) {
       // Same exception as edge-intersects-obstacle: the edge's own label
       // node is a waypoint, not an obstacle to be avoided.
       if (ownLabelId && obstacleId === ownLabelId) {
@@ -804,15 +892,37 @@ export function validateLayout(layout: LayoutData): ValidateLayoutResult {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 2b) Edge-label-overlaps-foreign-edge check
+  // 2b) Edge-label overlap checks (foreign-edge + group-border)
   //
-  // An edge label node is rendered at its center and is "owned" by exactly
-  // one edge (the one carrying `labelNodeId === labelNode.id`). No OTHER
-  // edge's polyline should pass through that label's rectangle — the label
-  // text would visually sit on top of an unrelated edge.
+  // An edge label sits at its center rect and is "owned" by exactly one edge.
+  // Two visual defects: the label text sitting on top of an UNRELATED edge,
+  // or being cut by a subgraph FRAME line. The label rect comes from one of
+  // two representations, handled uniformly:
+  //   • post-finalize overlay (the real DDLT/browser path): label lives on
+  //     its owning edge as `edge.label` + `edge.x/y` + `edge.width/height`
+  //     (faithful to paint after the single-source-of-truth pass, #18) →
+  //     `labelRectForEdge`.
+  //   • pre-finalize label-dummy node (synthetic/spec layouts): the
+  //     `edge-label-*` node carries the rect; owner via `labelNodeId`.
+  // The two never coexist for the same label, so building a unified list is
+  // safe and keeps the existing label-dummy spec coverage green.
   // ─────────────────────────────────────────────────────────────────────────────
   {
-    // Index owning edges by their label node id for O(1) lookup.
+    interface LabelEntry {
+      rect: Rect;
+      ownerEdgeId: string;
+      labelNodeId: string | null;
+    }
+    const labelEntries: LabelEntry[] = [];
+
+    // (a) post-finalize overlay representation
+    for (const e of edges) {
+      const lr = labelRectForEdge(e);
+      if (lr) {
+        labelEntries.push({ rect: lr, ownerEdgeId: String(e?.id ?? ''), labelNodeId: null });
+      }
+    }
+    // (b) pre-finalize label-dummy representation
     const ownerEdgeIdByLabelId = new Map<string, string>();
     for (const e of edges) {
       const lid = (e as { labelNodeId?: string }).labelNodeId;
@@ -825,27 +935,70 @@ export function validateLayout(layout: LayoutData): ValidateLayoutResult {
         continue;
       }
       const labelId = String(labelNode.id);
-      const labelRect = nodeRects.get(labelId);
-      if (!labelRect) {
+      const lr = nodeRects.get(labelId);
+      if (!lr) {
         continue;
       }
-      const ownerEdgeId = ownerEdgeIdByLabelId.get(labelId);
+      labelEntries.push({
+        rect: lr,
+        ownerEdgeId: ownerEdgeIdByLabelId.get(labelId) ?? '',
+        labelNodeId: labelId,
+      });
+    }
+
+    for (const { rect: labelRect, ownerEdgeId, labelNodeId } of labelEntries) {
+      const who = labelNodeId ? `node "${labelNodeId}"` : `of edge "${ownerEdgeId}"`;
+
+      // edge-label-overlaps-foreign-edge: any OTHER edge's polyline through it.
       for (const em of edgeMetas) {
-        // Skip the label's own edge.
         if (ownerEdgeId && em.id === ownerEdgeId) {
           continue;
         }
+        let hit = false;
         for (let i = 0; i < em.points.length - 1; i++) {
           if (segmentIntersectsRectInterior(em.points[i], em.points[i + 1], labelRect)) {
             issues.push({
               type: 'edge-label-overlaps-foreign-edge',
-              message: `Label node "${labelId}" overlaps edge "${em.id}" (not its own edge)`,
+              message: `Label ${who} overlaps edge "${em.id}" (not its own edge)`,
               edgeId: em.id,
-              nodeIds: [labelId],
-              details: { segmentIndex: i, a: em.points[i], b: em.points[i + 1] },
+              nodeIds: labelNodeId ? [labelNodeId] : [],
+              details: { ownerEdgeId, segmentIndex: i, a: em.points[i], b: em.points[i + 1] },
             });
-            break; // one issue per label/edge pair
+            hit = true;
+            break;
           }
+        }
+        if (hit) {
+          break; // one foreign-edge issue per label
+        }
+      }
+
+      // edge-label-overlaps-group-border: a subgraph frame line cuts the
+      // label rect (the label is half-in / half-out of a subgraph — its text
+      // is visually sliced by the border, regardless of which group it is).
+      for (const [gId, gr] of groupBorderRects) {
+        const corners: Point[] = [
+          { x: gr.left, y: gr.top },
+          { x: gr.right, y: gr.top },
+          { x: gr.right, y: gr.bottom },
+          { x: gr.left, y: gr.bottom },
+        ];
+        let straddles = false;
+        for (let i = 0; i < 4; i++) {
+          if (segmentIntersectsRectInterior(corners[i], corners[(i + 1) % 4], labelRect)) {
+            straddles = true;
+            break;
+          }
+        }
+        if (straddles) {
+          issues.push({
+            type: 'edge-label-overlaps-group-border',
+            message: `Label ${who} straddles border of group "${gId}"`,
+            edgeId: ownerEdgeId || undefined,
+            nodeIds: labelNodeId ? [labelNodeId, gId] : [gId],
+            details: { groupId: gId },
+          });
+          break; // one group-border issue per label
         }
       }
     }
@@ -923,6 +1076,45 @@ export function validateLayout(layout: LayoutData): ValidateLayoutResult {
               alsoSamePortDeparture,
             },
           });
+        }
+
+        // ─── New: edge-shared-projected-port ─────────────────────────────────
+        // A detached endpoint stub can dodge `edge-shared-attachment-point`
+        // (the raw polyline points sit far apart) while still resolving to the
+        // SAME boundary port once projected back onto the node. This is the
+        // "in-edge and out-edge share a port on the diamond" defect: a router
+        // nudges one stub off the node to escape the raw-point check, leaving
+        // two edges that visually emanate from the same place. We project both
+        // endpoints onto the node's rect and flag when the projected ports
+        // coincide but the raw points did NOT — so this is purely additive to
+        // the raw check above and never double-emits.
+        if (attachDistance > EPS_SHARED_ATTACH) {
+          const nodeRect = nodeRects.get(nodeId);
+          if (nodeRect) {
+            const proj1 = {
+              x: Math.min(Math.max(p1.x, nodeRect.left), nodeRect.right),
+              y: Math.min(Math.max(p1.y, nodeRect.top), nodeRect.bottom),
+            };
+            const proj2 = {
+              x: Math.min(Math.max(p2.x, nodeRect.left), nodeRect.right),
+              y: Math.min(Math.max(p2.y, nodeRect.top), nodeRect.bottom),
+            };
+            const projectedDistance = distance(proj1, proj2);
+            if (projectedDistance <= EPS_SHARED_ATTACH) {
+              issues.push({
+                type: 'edge-shared-projected-port',
+                message: `Edges "${e1.id}" and "${e2.id}" resolve to the same boundary port on node "${nodeId}" (raw stubs ${attachDistance.toFixed(1)}px apart, projected ${projectedDistance.toFixed(1)}px)`,
+                nodeIds: [nodeId],
+                details: {
+                  edgeIds: [e1.id, e2.id],
+                  attachPoints: [p1, p2],
+                  projectedPorts: [proj1, proj2],
+                  rawDistance: attachDistance,
+                  projectedDistance,
+                },
+              });
+            }
+          }
         }
       }
     }

@@ -312,6 +312,51 @@ describe('validateLayout new hard-validation rules', () => {
     const types = getIssueTypes(layout);
     expect(types).not.toContain('edge-shared-attachment-point');
   });
+
+  it('flags edge-shared-projected-port when a detached out-edge stub projects to an in-edge port', () => {
+    // The intake-review-complete decision-diamond defect in miniature: an
+    // in-edge attaches on N's right boundary, and an out-edge is nudged 20px
+    // OFF the node (a detached stub) at the same height to dodge the raw
+    // `edge-shared-attachment-point` check — yet both resolve to the same
+    // right-side port once projected back onto N.
+    const n = mkNode('N', 0, 0, 40, 40); // rect [-20,20] x [-20,20]
+    const a = mkNode('A', 100, 0, 40, 40);
+    const b = mkNode('B', 40, -100, 40, 40);
+    const eIn = mkEdge('eIn', 'A', 'N', [
+      { x: 80, y: 0 }, // A's left side
+      { x: 20, y: 0 }, // N's right side — on the boundary
+    ]);
+    const eOut = mkEdge('eOut', 'N', 'B', [
+      { x: 40, y: 0 }, // 20px RIGHT of N's right side — detached stub, same y as eIn
+      { x: 40, y: -60 },
+    ]);
+    const layout: LayoutData = { nodes: [n, a, b], edges: [eIn, eOut], config: {} as any };
+
+    const types = getIssueTypes(layout);
+    // Raw points are 20px apart, so the existing point check stays silent…
+    expect(types).not.toContain('edge-shared-attachment-point');
+    // …but both project onto N's right side at (20,0): the port is shared.
+    expect(types).toContain('edge-shared-projected-port');
+  });
+
+  it('does NOT flag edge-shared-projected-port when a detached stub projects to a distinct port', () => {
+    const n = mkNode('N', 0, 0, 40, 40); // rect [-20,20] x [-20,20]
+    const a = mkNode('A', 100, 0, 40, 40);
+    const b = mkNode('B', 0, 100, 40, 40);
+    const eIn = mkEdge('eIn', 'A', 'N', [
+      { x: 80, y: 0 }, // A's left side
+      { x: 20, y: 0 }, // N's right side
+    ]);
+    const eOut = mkEdge('eOut', 'N', 'B', [
+      { x: 0, y: 40 }, // 20px BELOW N's bottom — detached stub projecting to bottom-center
+      { x: 0, y: 80 },
+    ]);
+    const layout: LayoutData = { nodes: [n, a, b], edges: [eIn, eOut], config: {} as any };
+
+    const types = getIssueTypes(layout);
+    // eIn projects to (20,0) right side; eOut projects to (0,20) bottom side — distinct.
+    expect(types).not.toContain('edge-shared-projected-port');
+  });
 });
 
 describe('validateLayout new geometric issues', () => {
