@@ -334,9 +334,8 @@ export interface FlowchartDiagramConfig extends BaseDiagramConfig {
    * Renders edge crossings as small arcs ("hops") or visible gaps so that
    * overlapping edges are easier to read. Set to `false` to disable.
    *
-   * Currently applied by the modern flowchart layout pipelines
-   * (ipsecCola, hola, swimlanes). Edges rendered as curves are skipped
-   * to avoid corrupting the geometry.
+   * Currently applied by the modern swimlanes layout pipeline. Edges
+   * rendered as curves are skipped to avoid corrupting the geometry.
    *
    */
   lineHops?: boolean | ('arc' | 'gap');

@@ -7,7 +7,7 @@ import { clear as clearNodes } from '../../rendering-elements/nodes.js';
 import { clear as clearClusters } from '../../rendering-elements/clusters.js';
 import { clear as clearEdges } from '../../rendering-elements/edges.js';
 import type { LayoutData } from '../../types.js';
-import { adjustLayout } from '../ipsecCola/adjustLayout.js';
+import { adjustLayout } from './adjustLayout.js';
 import { prepareLayoutForSwimlanes } from './helpers.js';
 import { createEdgeLabelNodes } from './edgeLabelNodes.js';
 import { runSwimlaneLayoutCore } from './layoutCore.js';
