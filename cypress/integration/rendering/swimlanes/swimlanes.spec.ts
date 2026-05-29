@@ -5,7 +5,6 @@ const SWIMLANE_FIXTURE_DIR = 'cypress/platform/dev-diagrams/layout-tests/swimlan
 const SWIMLANE_FIXTURES = [
   '1-simple.mmd',
   '10-node-placement.mmd',
-  '11-commant2.mmd',
   '2-decisions-lr.mmd',
   '3-decisions-tb.mmd',
   '4-car-fun-sales-tb.mmd',
@@ -15,6 +14,7 @@ const SWIMLANE_FIXTURES = [
   '8-query-process-2.mmd',
   '9-edge-labels.mmd',
   'commant.mmd',
+  'intake-review-complete.mmd',
   'mermaid-work.mmd',
   'query-process.mmd',
   'sales-process.mmd',
