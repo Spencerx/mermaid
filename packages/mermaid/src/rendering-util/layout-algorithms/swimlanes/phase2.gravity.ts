@@ -1,7 +1,7 @@
 import type { Graph, Layering, NodeId } from './helpers.js';
 import { topoSortIfAcyclic, normalizeGraph } from './phase0.helpers.js';
 import type { LayeringOptions } from './phase2.options.js';
-import { buildTopLaneMap } from './phase2.options.js';
+import { createTopLaneResolver } from './phase2.options.js';
 import { LAYERING } from './config.js';
 import { assignLayers_LongestPath } from './phase2.longestPath.js';
 
@@ -20,8 +20,7 @@ export function assignLayers_Gravity(gAcyclic: Graph, opts?: LayeringOptions): L
   });
   const rankOf: Record<NodeId, number> = { ...base.rankOf } as any;
 
-  const topLaneMap = buildTopLaneMap(g);
-  const topLaneOf = (id: NodeId): string | null => topLaneMap.get(id) ?? null;
+  const topLaneOf = createTopLaneResolver(g);
 
   // Precompute predecessors and successors
   const preds = new Map<NodeId, NodeId[]>();

@@ -48,3 +48,18 @@ export function buildTopLaneMap(g: Graph): Map<NodeId, string | null> {
   }
   return cache;
 }
+
+export function createTopLaneResolver(g: Graph): (id: NodeId) => string | null {
+  const topLaneMap = buildTopLaneMap(g);
+  return (id: NodeId): string | null => topLaneMap.get(id) ?? null;
+}
+
+export function buildTopLaneOrder(g: Graph): string[] {
+  const lanes: string[] = [];
+  for (const node of g.layout.nodes ?? []) {
+    if (node.isGroup && !node.parentId) {
+      lanes.push(node.id);
+    }
+  }
+  return [...new Set(lanes)].reverse();
+}

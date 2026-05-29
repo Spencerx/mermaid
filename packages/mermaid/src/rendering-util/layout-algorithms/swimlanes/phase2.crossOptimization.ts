@@ -1,7 +1,7 @@
 import type { Graph, NodeId, EdgeRef } from './helpers.js';
 import { buildLayerIndex, countInversions } from './phase0.helpers.js';
 import { LAYERING } from './config.js';
-import { buildTopLaneMap } from './phase2.options.js';
+import { createTopLaneResolver } from './phase2.options.js';
 import { buildMultitreeLayerOrder } from './phase2.multitree.order.js';
 // cspell:ignore acyclicity preds succs
 
@@ -71,8 +71,7 @@ export function optimizeRanksByCrossings(
     preds.get(e.dst)!.push(e.src);
   }
 
-  const topLaneMap = buildTopLaneMap(g);
-  const laneOf = (id: NodeId): string | null => topLaneMap.get(id) ?? null;
+  const laneOf = createTopLaneResolver(g);
 
   const layers = buildMultitreeLayerOrder(g, rankOf, laneOf);
   let best = totalCrossings(layers, g.edges, rankOf);

@@ -1,13 +1,12 @@
 import type { Graph, NodeId } from './helpers.js';
-import { buildTopLaneMap } from './phase2.options.js';
+import { createTopLaneResolver } from './phase2.options.js';
 
 /**
  * Heuristic to push nodes with only cross-lane outgoing edges downward so
  * that same-lane successors have room to appear above them.
  */
 export function adjustCrossLaneSources(g: Graph, rankOf: Record<NodeId, number>): void {
-  const topLaneMap = buildTopLaneMap(g);
-  const topLaneOf = (id: NodeId): string | null => topLaneMap.get(id) ?? null;
+  const topLaneOf = createTopLaneResolver(g);
 
   const nodesByRank = [...g.nodes].sort(
     (a, b) => (rankOf[a] ?? 0) - (rankOf[b] ?? 0) || a.localeCompare(b)

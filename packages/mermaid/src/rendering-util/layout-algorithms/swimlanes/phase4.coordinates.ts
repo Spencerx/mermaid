@@ -1,5 +1,6 @@
 import type { Graph, OrderedLayers, Coordinates, NodeId, EdgeRef } from './helpers.js';
 import { COORDINATES } from './config.js';
+import { buildTopLaneOrder, createTopLaneResolver } from './phase2.options.js';
 
 export interface CoordOptions {
   layerGap?: number; // vertical distance between layers
@@ -28,38 +29,8 @@ export function assignCoordinates(
   const getNode = (id: NodeId) => gWithDummies.nodeById.get(id) as any;
   const getWidth = (id: NodeId) => getNode(id)?.width ?? 0;
   const getHeight = (id: NodeId) => getNode(id)?.height ?? 0;
-
-  const isDummy = (id: NodeId) => !!getNode(id)?.isDummy;
-  const isEdgeLabelNode = (id: NodeId) => !!getNode(id)?.isEdgeLabel;
-  const topLaneOf = (id: NodeId): string | null => {
-    const node = getNode(id);
-    // Placeholder dummy nodes (from long edge splitting) don't belong to any lane
-    // But edge label nodes (isEdgeLabel: true) should be treated as belonging to their parentId lane
-    if (isDummy(id) && !isEdgeLabelNode(id)) {
-      return null;
-    }
-    let pid: string | undefined = node?.parentId;
-    if (!pid) {
-      return null;
-    }
-    let parent = gWithDummies.nodeById.get(pid) as any;
-    while (parent?.parentId) {
-      pid = parent.parentId;
-      parent = gWithDummies.nodeById.get(pid!) as any;
-    }
-    return pid ?? null;
-  };
-
-  // Global lane order by top-level group ids — flowDb yields them in reverse;
-  // reverse here to match the order of appearance in the graph without mutating flowDb
-  const allTopLanes: string[] = [];
-  for (const n of gWithDummies.layout.nodes ?? []) {
-    const nn: any = n;
-    if (nn?.isGroup && !nn?.parentId) {
-      allTopLanes.push(nn.id);
-    }
-  }
-  const laneOrderGlobal = [...new Set(allTopLanes)].reverse();
+  const topLaneOf = createTopLaneResolver(gWithDummies);
+  const laneOrderGlobal = buildTopLaneOrder(gWithDummies);
 
   // Precompute max height per layer for vertical spacing
   const layerHeights: number[] = layers.map((layer) =>

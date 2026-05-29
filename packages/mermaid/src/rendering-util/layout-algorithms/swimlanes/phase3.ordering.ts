@@ -1,49 +1,8 @@
 import type { Graph, Layering, OrderedLayers, NodeId, Edge } from './helpers.js';
 import { buildLayerIndex, countInversions } from './phase0.helpers.js';
+import { buildTopLaneOrder, createTopLaneResolver } from './phase2.options.js';
 
 type SweepDirection = 'down' | 'up';
-
-/**
- * Resolve the top-level lane (root group) for a node.
- * Placeholder dummy nodes (isDummy && !isEdgeLabel) have null lane.
- * Edge label nodes use their parentId lane.
- */
-function topLaneOf(id: NodeId, g: Graph): string | null {
-  const node = g.nodeById.get(id);
-  if (!node) {
-    return null;
-  }
-  // Placeholder dummy nodes don't belong to any lane
-  if (node.isDummy && !node.isEdgeLabel) {
-    return null;
-  }
-  const parentId = node.parentId;
-  if (!parentId) {
-    return null;
-  }
-  let topLaneId = parentId;
-  let parent = g.nodeById.get(parentId);
-  while (parent?.parentId) {
-    topLaneId = parent.parentId;
-    parent = g.nodeById.get(topLaneId);
-  }
-  return topLaneId;
-}
-
-/**
- * Compute the fixed left-to-right lane order from the graph's layout.
- * Top-level group nodes (isGroup && !parentId) define lanes; their order
- * is reversed to match the visual left-to-right appearance.
- */
-function computeLaneOrder(g: Graph): string[] {
-  const allTopLanes: string[] = [];
-  for (const n of g.layout.nodes ?? []) {
-    if (n.isGroup && !n.parentId) {
-      allTopLanes.push(n.id);
-    }
-  }
-  return [...new Set(allTopLanes)].reverse();
-}
 
 function median(values: number[]): number {
   const n = values.length;
@@ -153,7 +112,7 @@ function reorderLayer(
   targetLayer: NodeId[],
   edges: Edge[],
   direction: SweepDirection,
-  g?: Graph,
+  topLaneOf?: (id: NodeId) => string | null,
   laneOrder?: string[]
 ): NodeId[] {
   const fixedIndex = buildLayerIndex(fixedLayer);
@@ -161,14 +120,14 @@ function reorderLayer(
   const neighborPositions = neighborPositionsFor(targetLayer, fixedIndex, edges, direction);
 
   // If no lane info, fall back to flat reorder (original behavior)
-  if (!g || !laneOrder || laneOrder.length === 0) {
+  if (!topLaneOf || !laneOrder || laneOrder.length === 0) {
     return sortByHeuristic(targetLayer, neighborPositions, currIndex);
   }
 
   // Partition target layer nodes by lane
   const byLane = new Map<string | null, NodeId[]>();
   for (const id of targetLayer) {
-    const lane = topLaneOf(id, g);
+    const lane = topLaneOf(id);
     const arr = byLane.get(lane) ?? [];
     arr.push(id);
     byLane.set(lane, arr);
@@ -228,7 +187,7 @@ function transposeImprove(
   current: NodeId[],
   edges: Edge[],
   next?: NodeId[],
-  g?: Graph
+  topLaneOf?: (id: NodeId) => string | null
 ): NodeId[] {
   const best = [...current];
   const upperSet = new Set(upper);
@@ -249,10 +208,10 @@ function transposeImprove(
   };
 
   // Precompute lane membership for same-lane check
-  const laneOf = g ? new Map<NodeId, string | null>() : null;
-  if (g && laneOf) {
+  const laneOf = topLaneOf ? new Map<NodeId, string | null>() : null;
+  if (topLaneOf && laneOf) {
     for (const id of current) {
-      laneOf.set(id, topLaneOf(id, g));
+      laneOf.set(id, topLaneOf(id));
     }
   }
 
@@ -332,19 +291,20 @@ export function orderLayers(layering: Layering, gWithDummies: Graph): OrderedLay
   const edges = gWithDummies.edges;
 
   // Compute lane order for lane-aware crossing minimization (Siebenhaller Lemma 4.4)
-  const laneOrder = computeLaneOrder(gWithDummies);
+  const topLaneOf = createTopLaneResolver(gWithDummies);
+  const laneOrder = buildTopLaneOrder(gWithDummies);
 
   // Perform top-down / bottom-up sweeps
   for (let s = 0; s < 3; s++) {
     // Top-down: reorder layer i based on neighbors in layer i-1
     for (let i = 1; i < layers.length; i++) {
-      layers[i] = reorderLayer(layers[i - 1], layers[i], edges, 'down', gWithDummies, laneOrder);
-      layers[i] = transposeImprove(layers[i - 1], layers[i], edges, layers[i + 1], gWithDummies);
+      layers[i] = reorderLayer(layers[i - 1], layers[i], edges, 'down', topLaneOf, laneOrder);
+      layers[i] = transposeImprove(layers[i - 1], layers[i], edges, layers[i + 1], topLaneOf);
     }
     // Bottom-up: reorder layer i based on neighbors in layer i+1
     for (let i = layers.length - 2; i >= 0; i--) {
-      layers[i] = reorderLayer(layers[i + 1], layers[i], edges, 'up', gWithDummies, laneOrder);
-      layers[i] = transposeImprove(layers[i + 1], layers[i], edges, layers[i - 1], gWithDummies);
+      layers[i] = reorderLayer(layers[i + 1], layers[i], edges, 'up', topLaneOf, laneOrder);
+      layers[i] = transposeImprove(layers[i + 1], layers[i], edges, layers[i - 1], topLaneOf);
     }
   }
 

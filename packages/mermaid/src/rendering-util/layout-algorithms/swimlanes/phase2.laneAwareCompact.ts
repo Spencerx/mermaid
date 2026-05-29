@@ -1,7 +1,7 @@
 import type { Graph, Layering, NodeId } from './helpers.js';
 import { incoming, normalizeGraph, topoSortIfAcyclic } from './phase0.helpers.js';
 import type { LayeringOptions } from './phase2.options.js';
-import { buildTopLaneMap } from './phase2.options.js';
+import { createTopLaneResolver } from './phase2.options.js';
 
 // cspell:ignore indeg preds topo
 
@@ -52,8 +52,8 @@ export function assignLayers_LaneAwareCompact(gAcyclic: Graph, opts?: LayeringOp
       : (topoSortIfAcyclic(g) ?? [...g.nodes].sort());
 
   // Determine a lane id for each node: top-level parent id, or fall back to node id if none
-  const topLaneMap = buildTopLaneMap(g);
-  const laneOf = (id: NodeId): string => topLaneMap.get(id) ?? id;
+  const topLaneOf = createTopLaneResolver(g);
+  const laneOf = (id: NodeId): string => topLaneOf(id) ?? id;
 
   const rankOf: Record<NodeId, number> = Object.create(null);
   const nextFree = new Map<string, number>();

@@ -1,7 +1,7 @@
 import type { Graph, Layering, NodeId } from './helpers.js';
 import { incoming, topoSortIfAcyclic, normalizeGraph } from './phase0.helpers.js';
 import type { LayeringOptions } from './phase2.options.js';
-import { buildTopLaneMap } from './phase2.options.js';
+import { createTopLaneResolver } from './phase2.options.js';
 import { optimizeRanksByCrossings } from './phase2.crossOptimization.js';
 import { adjustCrossLaneSources } from './phase2.crossLaneAdjust.js';
 import { buildMultitreeLayerOrder } from './phase2.multitree.order.js';
@@ -14,8 +14,7 @@ export function assignLayers_LongestPath(gAcyclic: Graph, opts?: LayeringOptions
   const order = topoSortIfAcyclic(g) ?? [...g.nodes].sort();
   const compact = opts?.compactSingleInput ?? false;
 
-  const topLaneMap = buildTopLaneMap(g);
-  const topLaneOf = (id: NodeId): string | null => topLaneMap.get(id) ?? null;
+  const topLaneOf = createTopLaneResolver(g);
 
   let rankOf: Record<NodeId, number> = Object.create(null);
   for (const v of order) {

@@ -1,5 +1,6 @@
 import type { Graph, Coordinates, NodeId, EdgeRef } from './helpers.js';
 import { EDGE_ROUTING } from './config.js';
+import { createTopLaneResolver } from './phase2.options.js';
 
 // cspell:ignore bvert
 
@@ -42,26 +43,9 @@ function getArrayEntry<K, V>(map: Map<K, V[]>, key: K): V[] {
 function createNodeAccessors(gWithDummies: Graph, original: Graph) {
   const getNode = (id: NodeId) => original.nodeById.get(id) as any;
   const isDummy = (id: NodeId) => !!(gWithDummies.nodeById.get(id) as any)?.isDummy;
-  const isEdgeLabelNode = (id: NodeId) => !!(gWithDummies.nodeById.get(id) as any)?.isEdgeLabel;
   const getWidth = (id: NodeId) => (getNode(id)?.width as number | undefined) ?? 0;
   const getHeight = (id: NodeId) => (getNode(id)?.height as number | undefined) ?? 0;
-
-  const topLaneOf = (id: NodeId): string | null => {
-    const n = getNode(id);
-    if (!n || (isDummy(id) && !isEdgeLabelNode(id))) {
-      return null;
-    }
-    let pid: string | undefined = n.parentId;
-    if (!pid) {
-      return null;
-    }
-    let parent = original.nodeById.get(pid) as any;
-    while (parent?.parentId) {
-      pid = parent.parentId;
-      parent = original.nodeById.get(pid!) as any;
-    }
-    return pid ?? null;
-  };
+  const topLaneOf = createTopLaneResolver(original);
 
   return { getNode, isDummy, getWidth, getHeight, topLaneOf };
 }
