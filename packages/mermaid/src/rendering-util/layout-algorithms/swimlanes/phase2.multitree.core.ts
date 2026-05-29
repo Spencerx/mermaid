@@ -14,14 +14,7 @@ export function annotateMinimumLayers(
   const annotate = (node: NodeId) => {
     let minL = rankOf[node] ?? 0;
     const childList = [...(children.get(node) ?? [])];
-    childList.sort((a, b) => {
-      const ra = rankOf[a] ?? 0;
-      const rb = rankOf[b] ?? 0;
-      if (ra === rb) {
-        return a.localeCompare(b);
-      }
-      return ra - rb;
-    });
+    childList.sort(compareByRankThenId(rankOf));
     for (const child of childList) {
       annotate(child);
       const childMin = minLayer.get(child);
@@ -37,6 +30,14 @@ export function annotateMinimumLayers(
   }
 
   return minLayer;
+}
+
+export function compareByRankThenId(rankOf: Record<NodeId, number>) {
+  return (a: NodeId, b: NodeId) => {
+    const ra = rankOf[a] ?? 0;
+    const rb = rankOf[b] ?? 0;
+    return ra === rb ? a.localeCompare(b) : ra - rb;
+  };
 }
 
 /**

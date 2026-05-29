@@ -3,6 +3,7 @@ import { buildDrivingTree } from './driving-tree.js';
 import { computeSubtreeCrossCounts } from './phase2.crossCounts.js';
 import {
   annotateMinimumLayers,
+  compareByRankThenId,
   emitNodesInTreeOrder,
   deduplicateLayers,
 } from './phase2.multitree.core.js';
@@ -88,15 +89,7 @@ export function buildMultitreeLayerOrder(
 
   const crossCounts = computeSubtreeCrossCounts(g, rankOf, tree);
 
-  // Sort roots by rank and name for deterministic ordering
-  const rootsSorted = [...roots].sort((a, b) => {
-    const ra = rankOf[a] ?? 0;
-    const rb = rankOf[b] ?? 0;
-    if (ra === rb) {
-      return a.localeCompare(b);
-    }
-    return ra - rb;
-  });
+  const rootsSorted = [...roots].sort(compareByRankThenId(rankOf));
 
   // Annotate each node with the minimum layer in its subtree
   const minLayer = annotateMinimumLayers(rootsSorted, children, rankOf);

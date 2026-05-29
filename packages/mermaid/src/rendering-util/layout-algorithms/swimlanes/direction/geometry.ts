@@ -85,23 +85,30 @@ interface SimplifyPassResult {
   changed: boolean;
 }
 
-function nodeBoundsInfoFor(node: NodeBoundsInput): NodeBoundsInfo | undefined {
-  if (node.isGroup) {
-    return undefined;
-  }
+function measuredNodeRect(node: RectNodeInput) {
   const cx = node.x ?? 0;
   const cy = node.y ?? 0;
   const width = node.width ?? 0;
   const height = node.height ?? 0;
-  if (width <= 0 || height <= 0) {
+  return width > 0 && height > 0
+    ? { cx, cy, rect: rectFromCenterSize(cx, cy, width, height) }
+    : undefined;
+}
+
+function nodeBoundsInfoFor(node: NodeBoundsInput): NodeBoundsInfo | undefined {
+  if (node.isGroup) {
+    return undefined;
+  }
+  const measured = measuredNodeRect(node);
+  if (!measured) {
     return undefined;
   }
   const id = String(node.id ?? '');
   return {
     id,
-    cx,
-    cy,
-    rect: rectFromCenterSize(cx, cy, width, height),
+    cx: measured.cx,
+    cy: measured.cy,
+    rect: measured.rect,
   };
 }
 
@@ -212,14 +219,7 @@ export function rectFromCenterSize(
 }
 
 export function rectOfNodeBounds(node: RectNodeInput): RectBounds | undefined {
-  const cx = node.x ?? 0;
-  const cy = node.y ?? 0;
-  const width = node.width ?? 0;
-  const height = node.height ?? 0;
-  if (width <= 0 || height <= 0) {
-    return undefined;
-  }
-  return rectFromCenterSize(cx, cy, width, height);
+  return measuredNodeRect(node)?.rect;
 }
 
 export function portForRectSide(
