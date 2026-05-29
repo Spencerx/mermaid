@@ -3,6 +3,7 @@ import type { D3Selection, MaybePromise } from '../../types.js';
 import type { Node, ShapeRenderOptions } from '../types.js';
 import { anchor } from './shapes/anchor.js';
 import { bowTieRect } from './shapes/bowTieRect.js';
+import { collapsedGroup } from './shapes/collapsedGroup.js';
 import { card } from './shapes/card.js';
 import { choice } from './shapes/choice.js';
 import { circle } from './shapes/circle.js';
@@ -493,6 +494,9 @@ const generateShapeMap = () => {
     // Rectangles
     rectWithTitle,
     labelRect,
+
+    // Collapsed subgraph (flowchart `@{ view: collapsed }`)
+    collapsedGroup,
 
     // Icons
     iconSquare,
