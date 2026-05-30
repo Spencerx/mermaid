@@ -21,8 +21,6 @@ export const draw = async function (
   diag: any,
   positions: any
 ) {
-  const BUILD_NUMBER = 4;
-  log.info(`🔨 Flowchart Build #${BUILD_NUMBER}`);
   log.info('REF0:');
   log.info('Drawing state diagram (v2)', id);
   const { securityLevel, flowchart: conf, layout } = getConfig();
