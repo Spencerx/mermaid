@@ -15,6 +15,8 @@ Use swimlane diagrams when the most important question is not only "what happens
 
 ## Basic Example
 
+> The rendered examples on this page use the **Neo** look and the **Redux** theme. Out of the box, swimlanes use your configured default look and theme.
+
 ```mermaid-example
 swimlanes LR
   subgraph Customer

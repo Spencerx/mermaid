@@ -96,6 +96,8 @@ function emitCapturedSizes(captured: CapturedSizes, element: D3Selection): void 
     (domNode && 'ownerSVGElement' in domNode ? domNode.ownerSVGElement : null) ?? domNode;
   const svgId = ownerSvg?.id ?? '(unknown)';
 
+  // `mermaidCapturedSizes` accumulates one entry per captured render and is never
+  // trimmed; in a long dev session, `delete window.mermaidCapturedSizes` to reset it.
   g.mermaidCapturedSizes ??= [];
   const entry = { svgId, sizes: captured };
   g.mermaidCapturedSizes.push(entry);

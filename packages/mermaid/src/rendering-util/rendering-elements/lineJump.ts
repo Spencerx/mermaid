@@ -492,8 +492,10 @@ export function processEdgesWithJumps(
 }
 
 /**
- * Returns true iff the SVG path `d` attribute consists only of `M`/`L`
- * commands (case-insensitive). Curved paths are left to the caller to skip.
+ * Returns true iff the SVG path `d` is a straight-line path — only `M`/`L`/`m`/`l`
+ * move/line commands plus their numeric coordinates (digits, sign, decimal point,
+ * scientific-notation `e`, and `,`/space separators). Curved paths are skipped by
+ * the caller.
  */
 export function isStraightPath(d: string): boolean {
   return /^[\d\s+,.LMelm-]*$/.test(d);

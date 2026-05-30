@@ -23,11 +23,7 @@ export function cloneLayoutDataForDomMeasure(layout: LayoutData): LayoutData {
   };
 }
 
-/**
- * Copy nodes + edges produced by measurement from `measured` onto `canonical`.
- * Keeps the original `canonical.config` object so diagram/parser-owned config
- * references (and non-enumerable fields) stay intact.
- */
+/** Copy the measured `nodes`/`edges` back onto `canonical`, leaving its `config` untouched. */
 export function copyMeasuredGraphOntoCanonical(canonical: LayoutData, measured: LayoutData): void {
   canonical.nodes = measured.nodes;
   canonical.edges = measured.edges;
