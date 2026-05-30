@@ -19,7 +19,7 @@ import { addDiagrams } from '../../diagram-api/diagram-orchestration.js';
 import { preprocessDiagram } from '../../preprocess.js';
 import { toGraphView, writeBackToLayoutData } from '../layout-algorithms/swimlanes/helpers.js';
 import { sugiyamaLayout } from '../layout-algorithms/swimlanes/pipeline.js';
-import { routeEdgesOrthogonal } from '../layout-algorithms/swimlanes/raykovGemini/raykov.js';
+import { routeEdgesOrthogonal } from '../layout-algorithms/swimlanes/orthogonalRouter/router.js';
 import { postProcessSwimlaneLayout } from '../layout-algorithms/swimlanes/postProcessing.js';
 import { createEdgeLabelNodes } from '../layout-algorithms/swimlanes/edgeLabelNodes.js';
 import { findEdgeIntersections, type EdgeGeom } from './lineJump.js';

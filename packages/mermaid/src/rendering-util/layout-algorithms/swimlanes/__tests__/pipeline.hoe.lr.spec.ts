@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { LayoutData, Edge } from '../../../types.js';
 import { toGraphView, writeBackToLayoutData } from '../helpers.js';
 import { sugiyamaLayout } from '../pipeline.js';
-import { routeEdgesOrthogonal } from '../raykovGemini/raykov.js';
+import { routeEdgesOrthogonal } from '../orthogonalRouter/router.js';
 import { postProcessSwimlaneLayout as applySwimlaneDirectionTransform } from '../postProcessing.js';
 import { createEdgeLabelNodes } from '../edgeLabelNodes.js';
 import { validateLayout } from '../../layout-utils/validateLayout.js';

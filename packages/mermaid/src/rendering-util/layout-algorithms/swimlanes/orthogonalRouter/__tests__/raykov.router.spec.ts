@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { routeEdgesOrthogonal } from '../raykov.js';
+import { routeEdgesOrthogonal } from '../router.js';
 import type { LayoutData } from '../../../../types.js';
 
 // cspell:ignore Raykov

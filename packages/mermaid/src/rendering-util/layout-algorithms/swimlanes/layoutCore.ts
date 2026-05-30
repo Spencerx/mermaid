@@ -2,7 +2,7 @@ import type { LayoutData } from '../../types.js';
 import { postProcessSwimlaneLayout, validateSwimlanesLayout } from './postProcessing.js';
 import { toGraphView, writeBackToLayoutData } from './helpers.js';
 import { sugiyamaLayout } from './pipeline.js';
-import { routeEdgesOrthogonal as raykovRouting } from './raykovGemini/raykov.js';
+import { routeEdgesOrthogonal } from './orthogonalRouter/router.js';
 
 export type SwimlaneDirection = 'TB' | 'LR' | 'BT' | 'RL';
 
@@ -37,7 +37,7 @@ export function runSwimlaneLayoutCore(data4Layout: LayoutData): SwimlaneDirectio
   for (const edge of data4Layout.edges ?? []) {
     delete edge.points;
   }
-  raykovRouting(data4Layout, direction);
+  routeEdgesOrthogonal(data4Layout, direction);
 
   for (const edge of data4Layout.edges ?? []) {
     if (!edge.curve || edge.curve === 'basis') {
