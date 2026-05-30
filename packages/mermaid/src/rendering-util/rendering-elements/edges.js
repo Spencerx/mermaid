@@ -159,7 +159,6 @@ export const insertEdgeLabel = async (elem, edge) => {
       false
     );
     fo = startLabelElement;
-    inner.node().appendChild(startLabelElement);
     let slBox = startLabelElement.getBBox();
     if (useHtmlLabels) {
       const div = startLabelElement.children[0];
@@ -199,8 +198,6 @@ export const insertEdgeLabel = async (elem, edge) => {
     }
     inner.attr('transform', computeLabelTransform(slBox, useHtmlLabels));
 
-    endEdgeLabelLeft.node().appendChild(endLabelElement);
-
     if (!terminalLabels.get(edge.id)) {
       terminalLabels.set(edge.id, {});
     }
@@ -231,7 +228,6 @@ export const insertEdgeLabel = async (elem, edge) => {
     }
     inner.attr('transform', computeLabelTransform(slBox, useHtmlLabels));
 
-    endEdgeLabelRight.node().appendChild(endLabelElement);
     if (!terminalLabels.get(edge.id)) {
       terminalLabels.set(edge.id, {});
     }
@@ -332,7 +328,10 @@ export const positionEdgeLabel = (edge, paths) => {
   }
 };
 
-export const orthogonalizeToLabelClippedPoints = (edge, points) => {
+// Swimlanes-only helper, kept module-private: it self-gates to `-to-label` edges
+// (the swimlanes isLabelNode mechanism) and is called only from insertEdge's
+// `layout === 'swimlanes'` branch, so it is a no-op for every other layout.
+const orthogonalizeToLabelClippedPoints = (edge, points) => {
   if (!edge?.isLabelEdge || !edge?.id?.endsWith('-to-label') || !Array.isArray(points)) {
     return points;
   }
