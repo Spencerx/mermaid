@@ -175,11 +175,14 @@ export default tseslint.config(
     // loosened here as tracked tech debt — the intent is to bring this code to
     // the project lint baseline and remove this override entirely.
     // The shared production helpers (createGraph.ts, cloneLayoutDataForMeasure.ts,
-    // lineJump.ts) were brought to baseline and removed from this override.
+    // lineJump.ts) were brought to baseline and removed from this override; the
+    // lineJump *specs* stay here since, like the other layout specs, they use
+    // console for debug output.
     files: [
       'packages/mermaid/src/rendering-util/layout-algorithms/swimlanes/**',
       'packages/mermaid/src/rendering-util/layout-algorithms/ddlt/**',
       'packages/mermaid/src/rendering-util/layout-algorithms/layout-utils/**',
+      'packages/mermaid/src/rendering-util/rendering-elements/lineJump*.spec.ts',
     ],
     rules: {
       'no-console': 'off',
