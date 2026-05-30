@@ -580,14 +580,14 @@ export const insertEdge = function (
   startNode,
   endNode,
   diagramId,
-  _skipIntersect = false
+  skipIntersect = false
 ) {
   if (!diagramId) {
     throw new Error(
       `insertEdge: missing diagramId for edge "${edge.id}" — edge IDs require a diagram prefix for uniqueness`
     );
   }
-  const { handDrawnSeed } = getConfig();
+  const { handDrawnSeed, layout } = getConfig();
   let points = edge.points;
   let pointsHasChanged = false;
   const tail = startNode;
@@ -600,45 +600,48 @@ export const insertEdge = function (
     edgeClassStyles.push(edge.cssCompiledStyles[key]);
   }
 
-  if (head.intersect && tail.intersect && Array.isArray(points) && points.length >= 2) {
-    if (points.length === 2) {
-      // Simple straight edge: just clip the two endpoints to the node boundaries.
-      points = [tail.intersect(points[0]), head.intersect(points[1])];
-    } else {
-      // For multi-segment paths, keep the inner bend points and just adjust the entry/exit
-      // segments near the nodes.
-      const innerPoints = points.slice(1, -1);
-      const firstInner = innerPoints[0];
-      const lastInner = innerPoints[innerPoints.length - 1];
+  // Edge endpoint clipping. The swimlanes layout produces orthogonal edges whose
+  // axis-aligned entry/exit segments must be preserved, so it uses a dedicated
+  // boundary-clipping path. Every other layout (dagre, ELK, …) keeps the original
+  // clipping below, so their edge ports are unaffected by swimlanes.
+  if (layout === 'swimlanes') {
+    if (head.intersect && tail.intersect && Array.isArray(points) && points.length >= 2) {
+      if (points.length === 2) {
+        // Simple straight edge: just clip the two endpoints to the node boundaries.
+        points = [tail.intersect(points[0]), head.intersect(points[1])];
+      } else {
+        // For multi-segment paths, keep the inner bend points and just adjust the entry/exit
+        // segments near the nodes.
+        const innerPoints = points.slice(1, -1);
+        const firstInner = innerPoints[0];
+        const lastInner = innerPoints[innerPoints.length - 1];
 
-      let newFirst = tail.intersect(firstInner);
-      let newLast = head.intersect(lastInner);
+        const newFirst = tail.intersect(firstInner);
+        const newLast = head.intersect(lastInner);
 
-      // Handle duplicate points at boundaries.
-      // When the intersection returns approximately the same point as the inner point,
-      // it means the inner point is already at the boundary. In this case:
-      // - Skip adding the duplicate to avoid zero-length final segments
-      // - This applies to ALL curve types
-      const TOLERANCE = 0.5;
+        // When the boundary intersection lands ~on the inner point, skip it to
+        // avoid a zero-length final segment (keeps the entry/exit segment orthogonal).
+        const TOLERANCE = 0.5;
+        const lastIsDuplicate =
+          Math.abs(newLast.x - lastInner.x) < TOLERANCE &&
+          Math.abs(newLast.y - lastInner.y) < TOLERANCE;
+        const firstIsDuplicate =
+          Math.abs(newFirst.x - firstInner.x) < TOLERANCE &&
+          Math.abs(newFirst.y - firstInner.y) < TOLERANCE;
 
-      // Check if newLast is duplicate of lastInner
-      const lastIsDuplicate =
-        Math.abs(newLast.x - lastInner.x) < TOLERANCE &&
-        Math.abs(newLast.y - lastInner.y) < TOLERANCE;
+        const startPoints = firstIsDuplicate ? [] : [newFirst];
+        const endPoints = lastIsDuplicate ? [] : [newLast];
 
-      // Check if newFirst is duplicate of firstInner
-      const firstIsDuplicate =
-        Math.abs(newFirst.x - firstInner.x) < TOLERANCE &&
-        Math.abs(newFirst.y - firstInner.y) < TOLERANCE;
-
-      // Build points array, skipping duplicates
-      const startPoints = firstIsDuplicate ? [] : [newFirst];
-      const endPoints = lastIsDuplicate ? [] : [newLast];
-
-      points = [...startPoints, ...innerPoints, ...endPoints];
+        points = [...startPoints, ...innerPoints, ...endPoints];
+      }
     }
+    points = orthogonalizeToLabelClippedPoints(edge, points);
+  } else if (head.intersect && tail.intersect && !skipIntersect) {
+    // Original clipping — unchanged for dagre / ELK / every non-swimlanes layout.
+    points = points.slice(1, edge.points.length - 1);
+    points.unshift(tail.intersect(points[0]));
+    points.push(head.intersect(points[points.length - 1]));
   }
-  points = orthogonalizeToLabelClippedPoints(edge, points);
   const pointsStr = btoa(JSON.stringify(points));
   if (edge.toCluster) {
     log.info('to cluster abc88', clusterDb.get(edge.toCluster));
