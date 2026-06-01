@@ -175,10 +175,10 @@ export const draw = function (text, id, _version, diagObj) {
   });
 
   const classes = diagObj.db.getClasses();
-  const keys = Object.keys(classes);
+  const keys = [...classes.keys()];
 
   for (const key of keys) {
-    const classDef = classes[key];
+    const classDef = classes.get(key);
     const node = svgDraw.drawClass(diagram, classDef, conf, diagObj);
     idCache[node.id] = node;
 
@@ -193,6 +193,7 @@ export const draw = function (text, id, _version, diagObj) {
   const relations = diagObj.db.getRelations();
   relations.forEach(function (relation) {
     log.info(
+      // cspell:ignore tjoho
       'tjoho' + getGraphId(relation.id1) + getGraphId(relation.id2) + JSON.stringify(relation)
     );
     g.setEdge(
@@ -205,7 +206,7 @@ export const draw = function (text, id, _version, diagObj) {
     );
   });
 
-  const notes = diagObj.db.getNotes();
+  const notes = diagObj.db.getNotes().values();
   notes.forEach(function (note) {
     log.debug(`Adding note: ${JSON.stringify(note)}`);
     const node = svgDraw.drawNote(diagram, note, conf, diagObj);
@@ -215,7 +216,7 @@ export const draw = function (text, id, _version, diagObj) {
     // metadata about the node. In this case we're going to add labels to each of
     // our nodes.
     g.setNode(node.id, node);
-    if (note.class && note.class in classes) {
+    if (note.class && classes.has(note.class)) {
       g.setEdge(
         note.id,
         getGraphId(note.class),

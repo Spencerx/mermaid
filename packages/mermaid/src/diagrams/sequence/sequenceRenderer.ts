@@ -1,14 +1,16 @@
 // @ts-nocheck TODO: fix file
 import { select } from 'd3';
-import svgDraw, { ACTOR_TYPE_WIDTH, drawText, fixLifeLineHeights } from './svgDraw.js';
+import svgDraw, { drawKatex, ACTOR_TYPE_WIDTH, drawText, fixLifeLineHeights } from './svgDraw.js';
 import { log } from '../../logger.js';
-import common from '../common/common.js';
+import common, { calculateMathMLDimensions, hasKatex } from '../common/common.js';
+import { getUrl } from '../common/common.js';
 import * as svgDrawCommon from '../common/svgDrawCommon.js';
 import { getConfig } from '../../diagram-api/diagramAPI.js';
 import assignWithDepth from '../../assignWithDepth.js';
 import utils from '../../utils.js';
 import { configureSvgSize } from '../../setupGraphViewbox.js';
 import type { Diagram } from '../../Diagram.js';
+import { PARTICIPANT_TYPE } from './sequenceDb.js';
 
 let conf = {};
 
@@ -144,15 +146,15 @@ export const bounds = {
     this.updateBounds(_startx, _starty, _stopx, _stopy);
   },
   newActivation: function (message, diagram, actors) {
-    const actorRect = actors[message.from.actor];
-    const stackedSize = actorActivations(message.from.actor).length || 0;
+    const actorRect = actors.get(message.from);
+    const stackedSize = actorActivations(message.from).length || 0;
     const x = actorRect.x + actorRect.width / 2 + ((stackedSize - 1) * conf.activationWidth) / 2;
     this.activations.push({
       startx: x,
       starty: this.verticalPos + 2,
       stopx: x + conf.activationWidth,
       stopy: undefined,
-      actor: message.from.actor,
+      actor: message.from,
       anchored: svgDraw.anchorElement(diagram),
     });
   },
@@ -162,7 +164,7 @@ export const bounds = {
       .map(function (activation) {
         return activation.actor;
       })
-      .lastIndexOf(message.from.actor);
+      .lastIndexOf(message.from);
     return this.activations.splice(lastActorActivationIdx, 1)[0];
   },
   createLoop: function (title = { message: undefined, wrap: false, width: undefined }, fill) {
@@ -232,12 +234,12 @@ interface NoteModel {
 }
 
 /**
- * Draws an note in the diagram with the attached line
+ * Draws a note in the diagram with the attached line
  *
  * @param elem - The diagram to draw to.
  * @param noteModel - Note model options.
  */
-const drawNote = function (elem: any, noteModel: NoteModel) {
+const drawNote = async function (elem: any, noteModel: NoteModel, id: string) {
   bounds.bumpVerticalPos(conf.boxMargin);
   noteModel.height = conf.boxMargin;
   noteModel.starty = bounds.getVerticalPos();
@@ -248,6 +250,8 @@ const drawNote = function (elem: any, noteModel: NoteModel) {
   rect.class = 'note';
 
   const g = elem.append('g');
+  g.attr('data-et', 'note');
+  g.attr('data-id', 'i' + id);
   const rectElem = svgDraw.drawRect(g, rect);
   const textObj = svgDrawCommon.getTextObj();
   textObj.x = noteModel.startx;
@@ -263,7 +267,7 @@ const drawNote = function (elem: any, noteModel: NoteModel) {
   textObj.textMargin = conf.noteMargin;
   textObj.valign = 'center';
 
-  const textElem = drawText(g, textObj);
+  const textElem = hasKatex(textObj.text) ? await drawKatex(g, textObj) : drawText(g, textObj);
 
   const textHeight = Math.round(
     textElem
@@ -278,6 +282,94 @@ const drawNote = function (elem: any, noteModel: NoteModel) {
   noteModel.stopx = noteModel.startx + rect.width;
   bounds.insert(noteModel.startx, noteModel.starty, noteModel.stopx, noteModel.stopy);
   bounds.models.addNote(noteModel);
+};
+
+const drawCentralConnection = function (
+  elem: any,
+  msg: any,
+  msgModel: any,
+  diagObj: Diagram,
+  startx: number,
+  stopx: number,
+  lineStartY: number
+) {
+  const actors = diagObj.db.getActors();
+  const fromActor = actors.get(msg.from);
+  const toActor = actors.get(msg.to);
+  const isAutoNumberOn = msgModel.sequenceVisible;
+  let fromCenter = fromActor.x + fromActor.width / 2;
+  let toCenter = toActor.x + toActor.width / 2;
+
+  // Determine arrow direction: left-to-right or right-to-left
+  const isLeftToRight = fromCenter <= toCenter;
+  const isReverse = isReverseArrowType(msg, diagObj);
+
+  const g = elem.append('g');
+
+  const CENTRAL_CONNECTION_CIRCLE_OFFSET = 16.5;
+
+  const getCircleOffset = (isLeftToRight: boolean, isReverse: boolean) => {
+    const baseOffset = isLeftToRight
+      ? CENTRAL_CONNECTION_CIRCLE_OFFSET
+      : -CENTRAL_CONNECTION_CIRCLE_OFFSET;
+    return isReverse ? -baseOffset : baseOffset;
+  };
+
+  const drawCircle = (cx: number) => {
+    g.append('circle')
+      .attr('cx', cx)
+      .attr('cy', lineStartY)
+      .attr('r', 5)
+      .attr('width', 10)
+      .attr('height', 10);
+  };
+
+  const { CENTRAL_CONNECTION, CENTRAL_CONNECTION_REVERSE, CENTRAL_CONNECTION_DUAL } =
+    diagObj.db.LINETYPE;
+
+  // Calculate circle position adjustments when autonumber is enabled
+  if (isAutoNumberOn) {
+    switch (msg.centralConnection) {
+      case CENTRAL_CONNECTION:
+        // Pattern: actor ->>() actor - circle at destination
+        if (isReverse) {
+          toCenter += getCircleOffset(isLeftToRight, true);
+        }
+        // No adjustment for normal arrows
+        break;
+
+      case CENTRAL_CONNECTION_REVERSE:
+        // Pattern: actor ()->> actor - circle at source
+        if (!isReverse) {
+          fromCenter += getCircleOffset(isLeftToRight, false);
+        }
+        // No adjustment for reverse arrows
+        break;
+
+      case CENTRAL_CONNECTION_DUAL:
+        // Pattern: actor ()->>() actor - circles at both ends
+        if (isReverse) {
+          toCenter += getCircleOffset(isLeftToRight, true);
+        } else {
+          fromCenter += getCircleOffset(isLeftToRight, false);
+        }
+        break;
+    }
+  }
+
+  // Draw circles based on central connection type
+  switch (msg.centralConnection) {
+    case CENTRAL_CONNECTION:
+      drawCircle(toCenter);
+      break;
+    case CENTRAL_CONNECTION_REVERSE:
+      drawCircle(fromCenter);
+      break;
+    case CENTRAL_CONNECTION_DUAL:
+      drawCircle(fromCenter);
+      drawCircle(toCenter);
+      break;
+  }
 };
 
 const messageFont = (cnf) => {
@@ -311,15 +403,20 @@ const actorFont = (cnf) => {
  * @param msgModel - The model containing fields describing a message
  * @returns `lineStartY` - The Y coordinate at which the message line starts
  */
-function boundMessage(_diagram, msgModel): number {
+async function boundMessage(_diagram, msgModel): Promise<number> {
   bounds.bumpVerticalPos(10);
   const { startx, stopx, message } = msgModel;
   const lines = common.splitBreaks(message).length;
-  const textDims = utils.calculateTextDimensions(message, messageFont(conf));
-  const lineHeight = textDims.height / lines;
-  msgModel.height += lineHeight;
+  const isKatexMsg = hasKatex(message);
+  const textDims = isKatexMsg
+    ? await calculateMathMLDimensions(message, getConfig())
+    : utils.calculateTextDimensions(message, messageFont(conf));
 
-  bounds.bumpVerticalPos(lineHeight);
+  if (!isKatexMsg) {
+    const lineHeight = textDims.height / lines;
+    msgModel.height += lineHeight;
+    bounds.bumpVerticalPos(lineHeight);
+  }
 
   let lineStartY;
   let totalOffset = textDims.height - 10;
@@ -360,13 +457,20 @@ function boundMessage(_diagram, msgModel): number {
  * @param lineStartY - The Y coordinate at which the message line starts
  * @param diagObj - The diagram object.
  */
-const drawMessage = function (diagram, msgModel, lineStartY: number, diagObj: Diagram) {
+export const drawMessage = async function (
+  diagram,
+  msgModel,
+  lineStartY: number,
+  diagObj: Diagram,
+  msg,
+  diagramId: string
+) {
   const { startx, stopx, starty, message, type, sequenceIndex, sequenceVisible } = msgModel;
   const textDims = utils.calculateTextDimensions(message, messageFont(conf));
   const textObj = svgDrawCommon.getTextObj();
-  textObj.x = startx;
+  textObj.x = Math.min(startx, stopx);
   textObj.y = starty + 10;
-  textObj.width = stopx - startx;
+  textObj.width = Math.abs(stopx - startx);
   textObj.class = 'messageText';
   textObj.dy = '1em';
   textObj.text = message;
@@ -378,18 +482,27 @@ const drawMessage = function (diagram, msgModel, lineStartY: number, diagObj: Di
   textObj.textMargin = conf.wrapPadding;
   textObj.tspan = false;
 
-  drawText(diagram, textObj);
+  if (hasKatex(textObj.text)) {
+    await drawKatex(diagram, textObj, { startx, stopx, starty: lineStartY });
+  } else {
+    drawText(diagram, textObj);
+  }
 
   const textWidth = textDims.width;
 
   let line;
   if (startx === stopx) {
+    const isAutoNumberOn = sequenceVisible || conf.showSequenceNumbers;
+    const isReverse = isReverseArrowType(msg, diagObj);
+    const isBidirectional = isBidirectionalArrowType(msg, diagObj);
+    const lineStartX = startx + (isAutoNumberOn && (isReverse || isBidirectional) ? 10 : 0);
+
     if (conf.rightAngles) {
       line = diagram
         .append('path')
         .attr(
           'd',
-          `M  ${startx},${lineStartY} H ${
+          `M  ${lineStartX},${lineStartY} H ${
             startx + common.getMax(conf.width / 2, textWidth / 2)
           } V ${lineStartY + 25} H ${startx}`
         );
@@ -399,11 +512,11 @@ const drawMessage = function (diagram, msgModel, lineStartY: number, diagObj: Di
         .attr(
           'd',
           'M ' +
-            startx +
+            lineStartX +
             ',' +
             lineStartY +
             ' C ' +
-            (startx + 60) +
+            (lineStartX + 60) +
             ',' +
             (lineStartY - 10) +
             ' ' +
@@ -416,12 +529,19 @@ const drawMessage = function (diagram, msgModel, lineStartY: number, diagObj: Di
             (lineStartY + 20)
         );
     }
+    // Draw central connection circles for self-connection arrows
+    if (hasCentralConnection(msg, diagObj)) {
+      drawCentralConnection(diagram, msg, msgModel, diagObj, startx, stopx, lineStartY);
+    }
   } else {
     line = diagram.append('line');
     line.attr('x1', startx);
     line.attr('y1', lineStartY);
     line.attr('x2', stopx);
     line.attr('y2', lineStartY);
+    if (hasCentralConnection(msg, diagObj)) {
+      drawCentralConnection(diagram, msg, msgModel, diagObj, startx, stopx, lineStartY);
+    }
   }
   // Make an SVG Container
   // Draw the line
@@ -429,7 +549,16 @@ const drawMessage = function (diagram, msgModel, lineStartY: number, diagObj: Di
     type === diagObj.db.LINETYPE.DOTTED ||
     type === diagObj.db.LINETYPE.DOTTED_CROSS ||
     type === diagObj.db.LINETYPE.DOTTED_POINT ||
-    type === diagObj.db.LINETYPE.DOTTED_OPEN
+    type === diagObj.db.LINETYPE.DOTTED_OPEN ||
+    type === diagObj.db.LINETYPE.BIDIRECTIONAL_DOTTED ||
+    type === diagObj.db.LINETYPE.SOLID_TOP_DOTTED ||
+    type === diagObj.db.LINETYPE.SOLID_BOTTOM_DOTTED ||
+    type === diagObj.db.LINETYPE.STICK_TOP_DOTTED ||
+    type === diagObj.db.LINETYPE.STICK_BOTTOM_DOTTED ||
+    type === diagObj.db.LINETYPE.SOLID_ARROW_TOP_REVERSE_DOTTED ||
+    type === diagObj.db.LINETYPE.SOLID_ARROW_BOTTOM_REVERSE_DOTTED ||
+    type === diagObj.db.LINETYPE.STICK_ARROW_TOP_REVERSE_DOTTED ||
+    type === diagObj.db.LINETYPE.STICK_ARROW_BOTTOM_REVERSE_DOTTED
   ) {
     line.style('stroke-dasharray', '3, 3');
     line.attr('class', 'messageLine1');
@@ -437,41 +566,173 @@ const drawMessage = function (diagram, msgModel, lineStartY: number, diagObj: Di
     line.attr('class', 'messageLine0');
   }
 
+  line.attr('data-et', 'message');
+  line.attr('data-id', 'i' + msgModel.id);
+  line.attr('data-from', msgModel.from);
+  line.attr('data-to', msgModel.to);
+
   let url = '';
   if (conf.arrowMarkerAbsolute) {
-    url =
-      window.location.protocol +
-      '//' +
-      window.location.host +
-      window.location.pathname +
-      window.location.search;
-    url = url.replace(/\(/g, '\\(');
-    url = url.replace(/\)/g, '\\)');
+    url = getUrl(true);
   }
 
   line.attr('stroke-width', 2);
   line.attr('stroke', 'none'); // handled by theme/css anyway
   line.style('fill', 'none'); // remove any fill colour
+
+  if (type === diagObj.db.LINETYPE.SOLID_TOP || type === diagObj.db.LINETYPE.SOLID_TOP_DOTTED) {
+    line.attr('marker-end', 'url(' + url + '#' + diagramId + '-solidTopArrowHead)');
+  }
+  if (
+    type === diagObj.db.LINETYPE.SOLID_BOTTOM ||
+    type === diagObj.db.LINETYPE.SOLID_BOTTOM_DOTTED
+  ) {
+    line.attr('marker-end', 'url(' + url + '#' + diagramId + '-solidBottomArrowHead)');
+  }
+  if (type === diagObj.db.LINETYPE.STICK_TOP || type === diagObj.db.LINETYPE.STICK_TOP_DOTTED) {
+    line.attr('marker-end', 'url(' + url + '#' + diagramId + '-stickTopArrowHead)');
+  }
+  if (
+    type === diagObj.db.LINETYPE.STICK_BOTTOM ||
+    type === diagObj.db.LINETYPE.STICK_BOTTOM_DOTTED
+  ) {
+    line.attr('marker-end', 'url(' + url + '#' + diagramId + '-stickBottomArrowHead)');
+  }
+
+  if (
+    type === diagObj.db.LINETYPE.SOLID_ARROW_TOP_REVERSE ||
+    type === diagObj.db.LINETYPE.SOLID_ARROW_TOP_REVERSE_DOTTED
+  ) {
+    line.attr('marker-start', 'url(' + url + '#' + diagramId + '-solidBottomArrowHead)');
+  }
+  if (
+    type === diagObj.db.LINETYPE.SOLID_ARROW_BOTTOM_REVERSE ||
+    type === diagObj.db.LINETYPE.SOLID_ARROW_BOTTOM_REVERSE_DOTTED
+  ) {
+    line.attr('marker-start', 'url(' + url + '#' + diagramId + '-solidTopArrowHead)');
+  }
+  if (
+    type === diagObj.db.LINETYPE.STICK_ARROW_TOP_REVERSE ||
+    type === diagObj.db.LINETYPE.STICK_ARROW_TOP_REVERSE_DOTTED
+  ) {
+    line.attr('marker-start', 'url(' + url + '#' + diagramId + '-stickBottomArrowHead)');
+  }
+  if (
+    type === diagObj.db.LINETYPE.STICK_ARROW_BOTTOM_REVERSE ||
+    type === diagObj.db.LINETYPE.STICK_ARROW_BOTTOM_REVERSE_DOTTED
+  ) {
+    line.attr('marker-start', 'url(' + url + '#' + diagramId + '-stickTopArrowHead)');
+  }
+
   if (type === diagObj.db.LINETYPE.SOLID || type === diagObj.db.LINETYPE.DOTTED) {
-    line.attr('marker-end', 'url(' + url + '#arrowhead)');
+    line.attr('marker-end', 'url(' + url + '#' + diagramId + '-arrowhead)');
+  }
+  if (
+    type === diagObj.db.LINETYPE.BIDIRECTIONAL_SOLID ||
+    type === diagObj.db.LINETYPE.BIDIRECTIONAL_DOTTED
+  ) {
+    line.attr('marker-start', 'url(' + url + '#' + diagramId + '-arrowhead)');
+    line.attr('marker-end', 'url(' + url + '#' + diagramId + '-arrowhead)');
   }
   if (type === diagObj.db.LINETYPE.SOLID_POINT || type === diagObj.db.LINETYPE.DOTTED_POINT) {
-    line.attr('marker-end', 'url(' + url + '#filled-head)');
+    line.attr('marker-end', 'url(' + url + '#' + diagramId + '-filled-head)');
   }
 
   if (type === diagObj.db.LINETYPE.SOLID_CROSS || type === diagObj.db.LINETYPE.DOTTED_CROSS) {
-    line.attr('marker-end', 'url(' + url + '#crosshead)');
+    line.attr('marker-end', 'url(' + url + '#' + diagramId + '-crosshead)');
   }
 
   // add node number
   if (sequenceVisible || conf.showSequenceNumbers) {
-    line.attr('marker-start', 'url(' + url + '#sequencenumber)');
+    const isBidirectional =
+      type === diagObj.db.LINETYPE.BIDIRECTIONAL_SOLID ||
+      type === diagObj.db.LINETYPE.BIDIRECTIONAL_DOTTED;
+
+    const isReverseArrowType =
+      type === diagObj.db.LINETYPE.SOLID_ARROW_TOP_REVERSE ||
+      type === diagObj.db.LINETYPE.SOLID_ARROW_TOP_REVERSE_DOTTED ||
+      type === diagObj.db.LINETYPE.SOLID_ARROW_BOTTOM_REVERSE ||
+      type === diagObj.db.LINETYPE.SOLID_ARROW_BOTTOM_REVERSE_DOTTED ||
+      type === diagObj.db.LINETYPE.STICK_ARROW_TOP_REVERSE ||
+      type === diagObj.db.LINETYPE.STICK_ARROW_TOP_REVERSE_DOTTED ||
+      type === diagObj.db.LINETYPE.STICK_ARROW_BOTTOM_REVERSE ||
+      type === diagObj.db.LINETYPE.STICK_ARROW_BOTTOM_REVERSE_DOTTED;
+
+    const SEQUENCE_NUMBER_RADIUS = 6;
+    const hasCentralConn = hasCentralConnection(msg, diagObj);
+    let lineStartX = startx;
+    let lineStopX = stopx;
+
+    if (isBidirectional) {
+      // For bidirectional arrows, adjust the start position
+      if (startx < stopx) {
+        lineStartX = startx + SEQUENCE_NUMBER_RADIUS * 2;
+      } else {
+        lineStartX = startx - SEQUENCE_NUMBER_RADIUS + (hasCentralConn ? -5 : 0);
+        lineStartX +=
+          msg?.centralConnection === diagObj.db.LINETYPE.CENTRAL_CONNECTION_DUAL ||
+          msg?.centralConnection === diagObj.db.LINETYPE.CENTRAL_CONNECTION_REVERSE
+            ? -7.5
+            : 0;
+      }
+      line.attr('x1', lineStartX);
+    } else if (isReverseArrowType) {
+      // For reverse arrows, adjust the stop position (where the arrowhead is)
+      if (stopx > startx) {
+        lineStopX = stopx - 2 * SEQUENCE_NUMBER_RADIUS;
+      } else {
+        lineStopX = stopx - SEQUENCE_NUMBER_RADIUS;
+        lineStartX +=
+          msg?.centralConnection === diagObj.db.LINETYPE.CENTRAL_CONNECTION_DUAL ||
+          msg?.centralConnection === diagObj.db.LINETYPE.CENTRAL_CONNECTION_REVERSE
+            ? -7.5
+            : 0;
+      }
+      lineStopX += hasCentralConn ? 15 : 0;
+
+      line.attr('x2', lineStopX);
+      line.attr('x1', lineStartX);
+    } else {
+      line.attr('x1', startx + SEQUENCE_NUMBER_RADIUS);
+    }
+
+    // Calculate autonumber X position
+    let autonumberX = 0;
+    const isSelfMessage = startx === stopx;
+    const isLeftToRight = startx <= stopx;
+
+    if (isSelfMessage) {
+      autonumberX = msgModel.fromBounds + 1;
+    } else if (isReverseArrowType) {
+      autonumberX = isLeftToRight ? msgModel.toBounds - 1 : msgModel.fromBounds + 1;
+    } else {
+      autonumberX = isLeftToRight ? msgModel.fromBounds + 1 : msgModel.toBounds - 1;
+    }
+
+    let fontSize = '12px';
+    const sequenceIndexLength = sequenceIndex.toString().length;
+
+    if (sequenceIndexLength > 5) {
+      fontSize = '7px';
+    } else if (sequenceIndexLength > 3) {
+      fontSize = '9px';
+    }
+
+    diagram
+      .append('line')
+      .attr('x1', autonumberX)
+      .attr('y1', lineStartY)
+      .attr('x2', autonumberX)
+      .attr('y2', lineStartY)
+      .attr('stroke-width', 0)
+      .attr('marker-start', 'url(' + url + '#' + diagramId + '-sequencenumber)');
+
     diagram
       .append('text')
-      .attr('x', startx)
+      .attr('x', autonumberX)
       .attr('y', lineStartY + 4)
       .attr('font-family', 'sans-serif')
-      .attr('font-size', '12px')
+      .attr('font-size', fontSize)
       .attr('text-anchor', 'middle')
       .attr('class', 'sequenceNumber')
       .text(sequenceIndex);
@@ -481,7 +742,7 @@ const drawMessage = function (diagram, msgModel, lineStartY: number, diagObj: Di
 const addActorRenderingData = function (
   diagram,
   actors,
-  createdActors,
+  createdActors: Map<string, any>,
   actorKeys,
   verticalPos,
   messages,
@@ -493,7 +754,7 @@ const addActorRenderingData = function (
   let maxHeight = 0;
 
   for (const actorKey of actorKeys) {
-    const actor = actors[actorKey];
+    const actor = actors.get(actorKey);
     const box = actor.box;
 
     // end of box
@@ -514,14 +775,14 @@ const addActorRenderingData = function (
     }
 
     // Add some rendering data to the object
-    actor.width = actor.width || conf.width;
+    actor.width = common.getMax(actor.width || conf.width, conf.width);
     actor.height = common.getMax(actor.height || conf.height, conf.height);
     actor.margin = actor.margin || conf.actorMargin;
 
     maxHeight = common.getMax(maxHeight, actor.height);
 
     // if the actor is created by a message, widen margin
-    if (createdActors[actor.name]) {
+    if (createdActors.get(actor.name)) {
       prevMargin += actor.width / 2;
     }
 
@@ -548,22 +809,38 @@ const addActorRenderingData = function (
   bounds.bumpVerticalPos(maxHeight);
 };
 
-export const drawActors = function (diagram, actors, actorKeys, isFooter) {
+export const drawActors = async function (
+  diagram,
+  actors,
+  actorKeys,
+  isFooter,
+  diagramId,
+  diagObj,
+  actorIndexMap
+) {
   if (!isFooter) {
     for (const actorKey of actorKeys) {
-      const actor = actors[actorKey];
+      const actor = actors.get(actorKey);
       // Draw the box with the attached line
-      svgDraw.drawActor(diagram, actor, conf, false);
+      await svgDraw.drawActor(diagram, actor, conf, false, diagramId, diagObj, actorIndexMap);
     }
   } else {
     let maxHeight = 0;
     bounds.bumpVerticalPos(conf.boxMargin * 2);
     for (const actorKey of actorKeys) {
-      const actor = actors[actorKey];
+      const actor = actors.get(actorKey);
       if (!actor.stopy) {
         actor.stopy = bounds.getVerticalPos();
       }
-      const height = svgDraw.drawActor(diagram, actor, conf, true);
+      const height = await svgDraw.drawActor(
+        diagram,
+        actor,
+        conf,
+        true,
+        diagramId,
+        diagObj,
+        actorIndexMap
+      );
       maxHeight = common.getMax(maxHeight, height);
     }
     bounds.bumpVerticalPos(maxHeight + conf.boxMargin);
@@ -574,7 +851,7 @@ export const drawActorsPopup = function (diagram, actors, actorKeys, doc) {
   let maxHeight = 0;
   let maxWidth = 0;
   for (const actorKey of actorKeys) {
-    const actor = actors[actorKey];
+    const actor = actors.get(actorKey);
     const minMenuWidth = getRequiredPopupWidth(actor);
     const menuDimensions = svgDraw.drawPopup(
       diagram,
@@ -617,15 +894,21 @@ const actorActivations = function (actor) {
 
 const activationBounds = function (actor, actors) {
   // handle multiple stacked activations for same actor
-  const actorObj = actors[actor];
+  const actorObj = actors.get(actor);
   const activations = actorActivations(actor);
 
-  const left = activations.reduce(function (acc, activation) {
-    return common.getMin(acc, activation.startx);
-  }, actorObj.x + actorObj.width / 2 - 1);
-  const right = activations.reduce(function (acc, activation) {
-    return common.getMax(acc, activation.stopx);
-  }, actorObj.x + actorObj.width / 2 + 1);
+  const left = activations.reduce(
+    function (acc, activation) {
+      return common.getMin(acc, activation.startx);
+    },
+    actorObj.x + actorObj.width / 2 - 1
+  );
+  const right = activations.reduce(
+    function (acc, activation) {
+      return common.getMax(acc, activation.stopx);
+    },
+    actorObj.x + actorObj.width / 2 + 1
+  );
   return [left, right];
 };
 
@@ -669,7 +952,7 @@ function adjustCreatedDestroyedData(
   destroyedActors
 ) {
   function receiverAdjustment(actor, adjustment) {
-    if (actor.x < actors[msg.from].x) {
+    if (actor.x < actors.get(msg.from).x) {
       bounds.insert(
         msgModel.stopx - adjustment,
         msgModel.starty,
@@ -689,7 +972,7 @@ function adjustCreatedDestroyedData(
   }
 
   function senderAdjustment(actor, adjustment) {
-    if (actor.x < actors[msg.to].x) {
+    if (actor.x < actors.get(msg.to).x) {
       bounds.insert(
         msgModel.startx - adjustment,
         msgModel.starty,
@@ -707,30 +990,40 @@ function adjustCreatedDestroyedData(
       msgModel.startx = msgModel.startx - adjustment;
     }
   }
+  const actorArray = [
+    PARTICIPANT_TYPE.ACTOR,
+    PARTICIPANT_TYPE.CONTROL,
+    PARTICIPANT_TYPE.ENTITY,
+    PARTICIPANT_TYPE.DATABASE,
+  ];
 
   // if it is a create message
-  if (createdActors[msg.to] == index) {
-    const actor = actors[msg.to];
-    const adjustment = actor.type == 'actor' ? ACTOR_TYPE_WIDTH / 2 + 3 : actor.width / 2 + 3;
+  if (createdActors.get(msg.to) == index) {
+    const actor = actors.get(msg.to);
+    const adjustment = actorArray.includes(actor.type)
+      ? ACTOR_TYPE_WIDTH / 2 + 3
+      : actor.width / 2 + 3;
     receiverAdjustment(actor, adjustment);
     actor.starty = lineStartY - actor.height / 2;
     bounds.bumpVerticalPos(actor.height / 2);
   }
   // if it is a destroy sender message
-  else if (destroyedActors[msg.from] == index) {
-    const actor = actors[msg.from];
+  else if (destroyedActors.get(msg.from) == index) {
+    const actor = actors.get(msg.from);
     if (conf.mirrorActors) {
-      const adjustment = actor.type == 'actor' ? ACTOR_TYPE_WIDTH / 2 : actor.width / 2;
+      const adjustment = actorArray.includes(actor.type) ? ACTOR_TYPE_WIDTH / 2 : actor.width / 2;
       senderAdjustment(actor, adjustment);
     }
     actor.stopy = lineStartY - actor.height / 2;
     bounds.bumpVerticalPos(actor.height / 2);
   }
   // if it is a destroy receiver message
-  else if (destroyedActors[msg.to] == index) {
-    const actor = actors[msg.to];
+  else if (destroyedActors.get(msg.to) == index) {
+    const actor = actors.get(msg.to);
     if (conf.mirrorActors) {
-      const adjustment = actor.type == 'actor' ? ACTOR_TYPE_WIDTH / 2 + 3 : actor.width / 2 + 3;
+      const adjustment = actorArray.includes(actor.type)
+        ? ACTOR_TYPE_WIDTH / 2 + 3
+        : actor.width / 2 + 3;
       receiverAdjustment(actor, adjustment);
     }
     actor.stopy = lineStartY - actor.height / 2;
@@ -746,8 +1039,8 @@ function adjustCreatedDestroyedData(
  * @param _version - Mermaid version from package.json
  * @param diagObj - A standard diagram containing the db and the text and type etc of the diagram
  */
-export const draw = function (_text: string, id: string, _version: string, diagObj: Diagram) {
-  const { securityLevel, sequence } = getConfig();
+export const draw = async function (_text: string, id: string, _version: string, diagObj: Diagram) {
+  const { securityLevel, sequence, look, themeVariables } = getConfig();
   conf = sequence;
   // Handle root and Document for when rendering in sandbox mode
   let sandboxElement;
@@ -776,12 +1069,12 @@ export const draw = function (_text: string, id: string, _version: string, diagO
   const title = diagObj.db.getDiagramTitle();
   const hasBoxes = diagObj.db.hasAtLeastOneBox();
   const hasBoxTitles = diagObj.db.hasAtLeastOneBoxWithTitle();
-  const maxMessageWidthPerActor = getMaxMessageWidthPerActor(actors, messages, diagObj);
-  conf.height = calculateActorMargins(actors, maxMessageWidthPerActor, boxes);
+  const maxMessageWidthPerActor = await getMaxMessageWidthPerActor(actors, messages, diagObj);
+  conf.height = await calculateActorMargins(actors, maxMessageWidthPerActor, boxes);
 
-  svgDraw.insertComputerIcon(diagram);
-  svgDraw.insertDatabaseIcon(diagram);
-  svgDraw.insertClockIcon(diagram);
+  svgDraw.insertComputerIcon(diagram, id);
+  svgDraw.insertDatabaseIcon(diagram, id);
+  svgDraw.insertClockIcon(diagram, id);
 
   if (hasBoxes) {
     bounds.bumpVerticalPos(conf.boxMargin);
@@ -799,14 +1092,26 @@ export const draw = function (_text: string, id: string, _version: string, diagO
     actorKeys = actorKeys.filter((actorKey) => newActors.has(actorKey));
   }
 
+  const actorIndexMap = new Map(
+    actorKeys.map((actorKey, index) => [actors.get(actorKey)?.name ?? actorKey, index])
+  );
+
   addActorRenderingData(diagram, actors, createdActors, actorKeys, 0, messages, false);
-  const loopWidths = calculateLoopBounds(messages, actors, maxMessageWidthPerActor, diagObj);
+  const loopWidths = await calculateLoopBounds(messages, actors, maxMessageWidthPerActor, diagObj);
 
   // The arrow head definition is attached to the svg once
-  svgDraw.insertArrowHead(diagram);
-  svgDraw.insertArrowCrossHead(diagram);
-  svgDraw.insertArrowFilledHead(diagram);
-  svgDraw.insertSequenceNumber(diagram);
+  svgDraw.insertArrowHead(diagram, id);
+  svgDraw.insertArrowCrossHead(diagram, id);
+  svgDraw.insertArrowFilledHead(diagram, id);
+  svgDraw.insertSequenceNumber(diagram, id);
+  svgDraw.insertSolidTopArrowHead(diagram, id);
+  svgDraw.insertSolidBottomArrowHead(diagram, id);
+  svgDraw.insertStickTopArrowHead(diagram, id);
+  svgDraw.insertStickBottomArrowHead(diagram, id);
+
+  if (look === 'neo') {
+    svgDraw.insertDropShadow(diagram, conf);
+  }
 
   /**
    * @param msg - The message to draw.
@@ -823,32 +1128,36 @@ export const draw = function (_text: string, id: string, _version: string, diagO
       activationData,
       verticalPos,
       conf,
-      actorActivations(msg.from.actor).length
+      actorActivations(msg.from).length,
+      diagObj,
+      actorIndexMap
     );
 
     bounds.insert(activationData.startx, verticalPos - 10, activationData.stopx, verticalPos);
   }
-
-  log.debug('createdActors', createdActors);
-  log.debug('destroyedActors', destroyedActors);
-
-  drawActors(diagram, actors, actorKeys, false);
 
   // Draw the messages/signals
   let sequenceIndex = 1;
   let sequenceIndexStep = 1;
   const messagesToDraw = [];
   const backgrounds = [];
-  messages.forEach(function (msg, index) {
+  let index = 0;
+  for (const msg of messages) {
     let loopModel, noteModel, msgModel;
 
     switch (msg.type) {
       case diagObj.db.LINETYPE.NOTE:
         bounds.resetVerticalPos();
         noteModel = msg.noteModel;
-        drawNote(diagram, noteModel);
+        await drawNote(diagram, noteModel, msg.id);
         break;
       case diagObj.db.LINETYPE.ACTIVE_START:
+        bounds.newActivation(msg, diagram, actors);
+        break;
+      case diagObj.db.LINETYPE.CENTRAL_CONNECTION:
+        bounds.newActivation(msg, diagram, actors);
+        break;
+      case diagObj.db.LINETYPE.CENTRAL_CONNECTION_REVERSE:
         bounds.newActivation(msg, diagram, actors);
         break;
       case diagObj.db.LINETYPE.ACTIVE_END:
@@ -865,14 +1174,25 @@ export const draw = function (_text: string, id: string, _version: string, diagO
         break;
       case diagObj.db.LINETYPE.LOOP_END:
         loopModel = bounds.endLoop();
-        svgDraw.drawLoop(diagram, loopModel, 'loop', conf);
+        await svgDraw.drawLoop(diagram, loopModel, 'loop', conf, msg);
         bounds.bumpVerticalPos(loopModel.stopy - bounds.getVerticalPos());
         bounds.models.addLoop(loopModel);
         break;
       case diagObj.db.LINETYPE.RECT_START:
-        adjustLoopHeightForWrap(loopWidths, msg, conf.boxMargin, conf.boxMargin, (message) =>
-          bounds.newLoop(undefined, message.message)
-        );
+        adjustLoopHeightForWrap(loopWidths, msg, conf.boxMargin, conf.boxMargin, (message) => {
+          let fill = message.message;
+          if (!fill) {
+            // Apply a theme-aware default fill.
+            // Because the rect is rendered behind actors and text, it does not obscure them.
+            // Use theme background when no explicit color is given; the rect renders
+            // behind all content so any semi-transparent theme color is safe.
+            fill =
+              themeVariables?.rectBkgColor ||
+              themeVariables?.actorBkg ||
+              'rgba(128, 128, 128, 0.5)';
+          }
+          bounds.newLoop(undefined, fill);
+        });
         break;
       case diagObj.db.LINETYPE.RECT_END:
         loopModel = bounds.endLoop();
@@ -891,7 +1211,7 @@ export const draw = function (_text: string, id: string, _version: string, diagO
         break;
       case diagObj.db.LINETYPE.OPT_END:
         loopModel = bounds.endLoop();
-        svgDraw.drawLoop(diagram, loopModel, 'opt', conf);
+        await svgDraw.drawLoop(diagram, loopModel, 'opt', conf, msg);
         bounds.bumpVerticalPos(loopModel.stopy - bounds.getVerticalPos());
         bounds.models.addLoop(loopModel);
         break;
@@ -915,7 +1235,7 @@ export const draw = function (_text: string, id: string, _version: string, diagO
         break;
       case diagObj.db.LINETYPE.ALT_END:
         loopModel = bounds.endLoop();
-        svgDraw.drawLoop(diagram, loopModel, 'alt', conf);
+        await svgDraw.drawLoop(diagram, loopModel, 'alt', conf, msg);
         bounds.bumpVerticalPos(loopModel.stopy - bounds.getVerticalPos());
         bounds.models.addLoop(loopModel);
         break;
@@ -941,7 +1261,7 @@ export const draw = function (_text: string, id: string, _version: string, diagO
         break;
       case diagObj.db.LINETYPE.PAR_END:
         loopModel = bounds.endLoop();
-        svgDraw.drawLoop(diagram, loopModel, 'par', conf);
+        await svgDraw.drawLoop(diagram, loopModel, 'par', conf, msg);
         bounds.bumpVerticalPos(loopModel.stopy - bounds.getVerticalPos());
         bounds.models.addLoop(loopModel);
         break;
@@ -974,7 +1294,7 @@ export const draw = function (_text: string, id: string, _version: string, diagO
         break;
       case diagObj.db.LINETYPE.CRITICAL_END:
         loopModel = bounds.endLoop();
-        svgDraw.drawLoop(diagram, loopModel, 'critical', conf);
+        await svgDraw.drawLoop(diagram, loopModel, 'critical', conf, msg);
         bounds.bumpVerticalPos(loopModel.stopy - bounds.getVerticalPos());
         bounds.models.addLoop(loopModel);
         break;
@@ -989,7 +1309,7 @@ export const draw = function (_text: string, id: string, _version: string, diagO
         break;
       case diagObj.db.LINETYPE.BREAK_END:
         loopModel = bounds.endLoop();
-        svgDraw.drawLoop(diagram, loopModel, 'break', conf);
+        await svgDraw.drawLoop(diagram, loopModel, 'break', conf, msg);
         bounds.bumpVerticalPos(loopModel.stopy - bounds.getVerticalPos());
         bounds.models.addLoop(loopModel);
         break;
@@ -999,7 +1319,10 @@ export const draw = function (_text: string, id: string, _version: string, diagO
           msgModel.starty = bounds.getVerticalPos();
           msgModel.sequenceIndex = sequenceIndex;
           msgModel.sequenceVisible = diagObj.db.showSequenceNumbers();
-          const lineStartY = boundMessage(diagram, msgModel);
+          msgModel.id = msg.id;
+          msgModel.from = msg.from;
+          msgModel.to = msg.to;
+          const lineStartY = await boundMessage(diagram, msgModel);
           adjustCreatedDestroyedData(
             msg,
             msgModel,
@@ -1009,7 +1332,7 @@ export const draw = function (_text: string, id: string, _version: string, diagO
             createdActors,
             destroyedActors
           );
-          messagesToDraw.push({ messageModel: msgModel, lineStartY: lineStartY });
+          messagesToDraw.push({ messageModel: msgModel, lineStartY: lineStartY, msg });
           bounds.models.addMessage(msgModel);
         } catch (e) {
           log.error('error while drawing message', e);
@@ -1022,36 +1345,66 @@ export const draw = function (_text: string, id: string, _version: string, diagO
         diagObj.db.LINETYPE.SOLID_OPEN,
         diagObj.db.LINETYPE.DOTTED_OPEN,
         diagObj.db.LINETYPE.SOLID,
+
+        diagObj.db.LINETYPE.SOLID_TOP,
+        diagObj.db.LINETYPE.SOLID_BOTTOM,
+        diagObj.db.LINETYPE.STICK_TOP,
+        diagObj.db.LINETYPE.STICK_BOTTOM,
+
+        diagObj.db.LINETYPE.SOLID_TOP_DOTTED,
+        diagObj.db.LINETYPE.SOLID_BOTTOM_DOTTED,
+        diagObj.db.LINETYPE.STICK_TOP_DOTTED,
+        diagObj.db.LINETYPE.STICK_BOTTOM_DOTTED,
+
+        diagObj.db.LINETYPE.SOLID_ARROW_TOP_REVERSE,
+        diagObj.db.LINETYPE.SOLID_ARROW_BOTTOM_REVERSE,
+        diagObj.db.LINETYPE.STICK_ARROW_TOP_REVERSE,
+        diagObj.db.LINETYPE.STICK_ARROW_BOTTOM_REVERSE,
+
+        diagObj.db.LINETYPE.SOLID_ARROW_TOP_REVERSE_DOTTED,
+        diagObj.db.LINETYPE.SOLID_ARROW_BOTTOM_REVERSE_DOTTED,
+        diagObj.db.LINETYPE.STICK_ARROW_TOP_REVERSE_DOTTED,
+        diagObj.db.LINETYPE.STICK_ARROW_BOTTOM_REVERSE_DOTTED,
+
         diagObj.db.LINETYPE.DOTTED,
         diagObj.db.LINETYPE.SOLID_CROSS,
         diagObj.db.LINETYPE.DOTTED_CROSS,
         diagObj.db.LINETYPE.SOLID_POINT,
         diagObj.db.LINETYPE.DOTTED_POINT,
+        diagObj.db.LINETYPE.BIDIRECTIONAL_SOLID,
+        diagObj.db.LINETYPE.BIDIRECTIONAL_DOTTED,
       ].includes(msg.type)
     ) {
-      sequenceIndex = sequenceIndex + sequenceIndexStep;
+      // hitting a floating point number error, so round to 2 decimal places
+      sequenceIndex = Math.round((sequenceIndex + sequenceIndexStep) * 100) / 100;
     }
-  });
-
-  messagesToDraw.forEach((e) => drawMessage(diagram, e.messageModel, e.lineStartY, diagObj));
-
-  if (conf.mirrorActors) {
-    drawActors(diagram, actors, actorKeys, true);
+    index++;
   }
 
+  log.debug('createdActors', createdActors);
+  log.debug('destroyedActors', destroyedActors);
+  await drawActors(diagram, actors, actorKeys, false, id, diagObj, actorIndexMap);
+
+  for (const e of messagesToDraw) {
+    await drawMessage(diagram, e.messageModel, e.lineStartY, diagObj, e.msg, id);
+  }
+  if (conf.mirrorActors) {
+    await drawActors(diagram, actors, actorKeys, true, id, diagObj, actorIndexMap);
+  }
   backgrounds.forEach((e) => svgDraw.drawBackgroundRect(diagram, e));
   fixLifeLineHeights(diagram, actors, actorKeys, conf);
 
-  bounds.models.boxes.forEach(function (box) {
+  for (const box of bounds.models.boxes) {
     box.height = bounds.getVerticalPos() - box.y;
     bounds.insert(box.x, box.y, box.x + box.width, box.height);
-    box.startx = box.x;
-    box.starty = box.y;
-    box.stopx = box.startx + box.width;
-    box.stopy = box.starty + box.height;
+    const boxPadding = conf.boxMargin * 2;
+    box.startx = box.x - boxPadding;
+    box.starty = box.y - boxPadding * 0.25;
+    box.stopx = box.startx + box.width + 2 * boxPadding;
+    box.stopy = box.starty + box.height + boxPadding * 0.75;
     box.stroke = 'rgb(0,0,0, 0.5)';
     svgDraw.drawBox(diagram, box, conf);
-  });
+  }
 
   if (hasBoxes) {
     bounds.bumpVerticalPos(conf.boxMargin);
@@ -1061,6 +1414,19 @@ export const draw = function (_text: string, id: string, _version: string, diagO
   const requiredBoxSize = drawActorsPopup(diagram, actors, actorKeys, doc);
 
   const { bounds: box } = bounds.getBounds();
+
+  if (box.startx === undefined) {
+    box.startx = 0;
+  }
+  if (box.starty === undefined) {
+    box.starty = 0;
+  }
+  if (box.stopx === undefined) {
+    box.stopx = 0;
+  }
+  if (box.stopy === undefined) {
+    box.stopy = 0;
+  }
 
   // Make sure the height of the diagram supports long menus.
   let boxHeight = box.stopy - box.starty;
@@ -1091,6 +1457,7 @@ export const draw = function (_text: string, id: string, _version: string, diagO
   configureSvgSize(diagram, height, width, conf.useMaxWidth);
 
   const extraVertForTitle = title ? 40 : 0;
+  const extraHeightForNeoActors = actors.size && look === 'neo' ? 30 : 0;
   diagram.attr(
     'viewBox',
     box.startx -
@@ -1100,7 +1467,7 @@ export const draw = function (_text: string, id: string, _version: string, diagO
       ' ' +
       width +
       ' ' +
-      (height + extraVertForTitle)
+      (height + extraVertForTitle + extraHeightForNeoActors)
   );
 
   log.debug(`models:`, bounds.models);
@@ -1117,25 +1484,25 @@ export const draw = function (_text: string, id: string, _version: string, diagO
  * @param diagObj - The diagram object.
  * @returns The max message width of each actor.
  */
-function getMaxMessageWidthPerActor(
-  actors: { [id: string]: any },
+async function getMaxMessageWidthPerActor(
+  actors: Map<string, any>,
   messages: any[],
   diagObj: Diagram
-): { [id: string]: number } {
+): Promise<Record<string, number>> {
   const maxMessageWidthPerActor = {};
 
-  messages.forEach(function (msg) {
-    if (actors[msg.to] && actors[msg.from]) {
-      const actor = actors[msg.to];
+  for (const msg of messages) {
+    if (actors.get(msg.to) && actors.get(msg.from)) {
+      const actor = actors.get(msg.to);
 
       // If this is the first actor, and the message is left of it, no need to calculate the margin
       if (msg.placement === diagObj.db.PLACEMENT.LEFTOF && !actor.prevActor) {
-        return;
+        continue;
       }
 
       // If this is the last actor, and the message is right of it, no need to calculate the margin
       if (msg.placement === diagObj.db.PLACEMENT.RIGHTOF && !actor.nextActor) {
-        return;
+        continue;
       }
 
       const isNote = msg.placement !== undefined;
@@ -1145,7 +1512,9 @@ function getMaxMessageWidthPerActor(
       const wrappedMessage = msg.wrap
         ? utils.wrapLabel(msg.message, conf.width - 2 * conf.wrapPadding, textFont)
         : msg.message;
-      const messageDimensions = utils.calculateTextDimensions(wrappedMessage, textFont);
+      const messageDimensions = hasKatex(wrappedMessage)
+        ? await calculateMathMLDimensions(msg.message, getConfig())
+        : utils.calculateTextDimensions(wrappedMessage, textFont);
       const messageWidth = messageDimensions.width + 2 * conf.wrapPadding;
 
       /*
@@ -1210,7 +1579,7 @@ function getMaxMessageWidthPerActor(
         }
       }
     }
-  });
+  }
 
   log.debug('maxMessageWidthPerActor:', maxMessageWidthPerActor);
   return maxMessageWidthPerActor;
@@ -1241,14 +1610,14 @@ const getRequiredPopupWidth = function (actor) {
  * @param actorToMessageWidth - A map of actor key → max message width it holds
  * @param boxes - The boxes around the actors if any
  */
-function calculateActorMargins(
-  actors: { [id: string]: any },
-  actorToMessageWidth: ReturnType<typeof getMaxMessageWidthPerActor>,
+async function calculateActorMargins(
+  actors: Map<string, any>,
+  actorToMessageWidth: Awaited<ReturnType<typeof getMaxMessageWidthPerActor>>,
   boxes
 ) {
   let maxHeight = 0;
-  Object.keys(actors).forEach((prop) => {
-    const actor = actors[prop];
+  for (const prop of actors.keys()) {
+    const actor = actors.get(prop);
     if (actor.wrap) {
       actor.description = utils.wrapLabel(
         actor.description,
@@ -1256,23 +1625,26 @@ function calculateActorMargins(
         actorFont(conf)
       );
     }
-    const actDims = utils.calculateTextDimensions(actor.description, actorFont(conf));
+    const actDims = hasKatex(actor.description)
+      ? await calculateMathMLDimensions(actor.description, getConfig())
+      : utils.calculateTextDimensions(actor.description, actorFont(conf));
+
     actor.width = actor.wrap
       ? conf.width
       : common.getMax(conf.width, actDims.width + 2 * conf.wrapPadding);
 
     actor.height = actor.wrap ? common.getMax(actDims.height, conf.height) : conf.height;
     maxHeight = common.getMax(maxHeight, actor.height);
-  });
+  }
 
   for (const actorKey in actorToMessageWidth) {
-    const actor = actors[actorKey];
+    const actor = actors.get(actorKey);
 
     if (!actor) {
       continue;
     }
 
-    const nextActor = actors[actor.nextActor];
+    const nextActor = actors.get(actor.nextActor);
 
     // No need to space out an actor that doesn't have a next link
     if (!nextActor) {
@@ -1292,8 +1664,11 @@ function calculateActorMargins(
   boxes.forEach((box) => {
     const textFont = messageFont(conf);
     let totalWidth = box.actorKeys.reduce((total, aKey) => {
-      return (total += actors[aKey].width + (actors[aKey].margin || 0));
+      return (total += actors.get(aKey).width + (actors.get(aKey).margin || 0));
     }, 0);
+
+    const standardBoxPadding = conf.boxMargin * 8;
+    totalWidth += standardBoxPadding;
 
     totalWidth -= 2 * conf.boxTextMargin;
     if (box.wrap) {
@@ -1314,21 +1689,25 @@ function calculateActorMargins(
   return common.getMax(maxHeight, conf.height);
 }
 
-const buildNoteModel = function (msg, actors, diagObj) {
-  const startx = actors[msg.from].x;
-  const stopx = actors[msg.to].x;
+const buildNoteModel = async function (msg, actors, diagObj) {
+  const fromActor = actors.get(msg.from);
+  const toActor = actors.get(msg.to);
+  const startx = fromActor.x;
+  const stopx = toActor.x;
   const shouldWrap = msg.wrap && msg.message;
 
-  let textDimensions = utils.calculateTextDimensions(
-    shouldWrap ? utils.wrapLabel(msg.message, conf.width, noteFont(conf)) : msg.message,
-    noteFont(conf)
-  );
+  let textDimensions: { width: number; height: number; lineHeight?: number } = hasKatex(msg.message)
+    ? await calculateMathMLDimensions(msg.message, getConfig())
+    : utils.calculateTextDimensions(
+        shouldWrap ? utils.wrapLabel(msg.message, conf.width, noteFont(conf)) : msg.message,
+        noteFont(conf)
+      );
   const noteModel = {
     width: shouldWrap
       ? conf.width
       : common.getMax(conf.width, textDimensions.width + 2 * conf.noteMargin),
     height: 0,
-    startx: actors[msg.from].x,
+    startx: fromActor.x,
     stopx: 0,
     starty: 0,
     stopy: 0,
@@ -1338,45 +1717,36 @@ const buildNoteModel = function (msg, actors, diagObj) {
     noteModel.width = shouldWrap
       ? common.getMax(conf.width, textDimensions.width)
       : common.getMax(
-          actors[msg.from].width / 2 + actors[msg.to].width / 2,
+          fromActor.width / 2 + toActor.width / 2,
           textDimensions.width + 2 * conf.noteMargin
         );
-    noteModel.startx = startx + (actors[msg.from].width + conf.actorMargin) / 2;
+    noteModel.startx = startx + (fromActor.width + conf.actorMargin) / 2;
   } else if (msg.placement === diagObj.db.PLACEMENT.LEFTOF) {
     noteModel.width = shouldWrap
       ? common.getMax(conf.width, textDimensions.width + 2 * conf.noteMargin)
       : common.getMax(
-          actors[msg.from].width / 2 + actors[msg.to].width / 2,
+          fromActor.width / 2 + toActor.width / 2,
           textDimensions.width + 2 * conf.noteMargin
         );
-    noteModel.startx = startx - noteModel.width + (actors[msg.from].width - conf.actorMargin) / 2;
+    noteModel.startx = startx - noteModel.width + (fromActor.width - conf.actorMargin) / 2;
   } else if (msg.to === msg.from) {
     textDimensions = utils.calculateTextDimensions(
       shouldWrap
-        ? utils.wrapLabel(
-            msg.message,
-            common.getMax(conf.width, actors[msg.from].width),
-            noteFont(conf)
-          )
+        ? utils.wrapLabel(msg.message, common.getMax(conf.width, fromActor.width), noteFont(conf))
         : msg.message,
       noteFont(conf)
     );
     noteModel.width = shouldWrap
-      ? common.getMax(conf.width, actors[msg.from].width)
-      : common.getMax(
-          actors[msg.from].width,
-          conf.width,
-          textDimensions.width + 2 * conf.noteMargin
-        );
-    noteModel.startx = startx + (actors[msg.from].width - noteModel.width) / 2;
+      ? common.getMax(conf.width, fromActor.width)
+      : common.getMax(fromActor.width, conf.width, textDimensions.width + 2 * conf.noteMargin);
+    noteModel.startx = startx + (fromActor.width - noteModel.width) / 2;
   } else {
     noteModel.width =
-      Math.abs(startx + actors[msg.from].width / 2 - (stopx + actors[msg.to].width / 2)) +
-      conf.actorMargin;
+      Math.abs(startx + fromActor.width / 2 - (stopx + toActor.width / 2)) + conf.actorMargin;
     noteModel.startx =
       startx < stopx
-        ? startx + actors[msg.from].width / 2 - conf.actorMargin / 2
-        : stopx + actors[msg.to].width / 2 - conf.actorMargin / 2;
+        ? startx + fromActor.width / 2 - conf.actorMargin / 2
+        : stopx + toActor.width / 2 - conf.actorMargin / 2;
   }
   if (shouldWrap) {
     noteModel.message = utils.wrapLabel(
@@ -1391,17 +1761,135 @@ const buildNoteModel = function (msg, actors, diagObj) {
   return noteModel;
 };
 
+// Central connection positioning constants
+const CENTRAL_CONNECTION_BASE_OFFSET = 4;
+const CENTRAL_CONNECTION_BIDIRECTIONAL_OFFSET = 6;
+
+/**
+ * Check if a message has central connection
+ * @param msg - The message object
+ * @param diagObj - The diagram object containing LINETYPE constants
+ * @returns True if the message has any type of central connection
+ */
+const hasCentralConnection = function (msg, diagObj) {
+  const { CENTRAL_CONNECTION, CENTRAL_CONNECTION_REVERSE, CENTRAL_CONNECTION_DUAL } =
+    diagObj.db.LINETYPE;
+  return [CENTRAL_CONNECTION, CENTRAL_CONNECTION_REVERSE, CENTRAL_CONNECTION_DUAL].includes(
+    msg.centralConnection
+  );
+};
+
+/**
+ * Calculate the positioning offset for central connection arrows
+ * @param msg - The message object
+ * @param diagObj - The diagram object containing LINETYPE constants
+ * @param isArrowToRight - Whether the arrow is pointing to the right
+ * @returns The offset to apply to startx position
+ */
+const calculateCentralConnectionOffset = function (msg, diagObj, isArrowToRight) {
+  const {
+    CENTRAL_CONNECTION_REVERSE,
+    CENTRAL_CONNECTION_DUAL,
+    BIDIRECTIONAL_SOLID,
+    BIDIRECTIONAL_DOTTED,
+  } = diagObj.db.LINETYPE;
+
+  let offset = 0;
+
+  if (
+    msg.centralConnection === CENTRAL_CONNECTION_REVERSE ||
+    msg.centralConnection === CENTRAL_CONNECTION_DUAL
+  ) {
+    offset += CENTRAL_CONNECTION_BASE_OFFSET;
+  }
+
+  if (
+    (msg.centralConnection === CENTRAL_CONNECTION_REVERSE ||
+      msg.centralConnection === CENTRAL_CONNECTION_DUAL) &&
+    (msg.type === BIDIRECTIONAL_SOLID || msg.type === BIDIRECTIONAL_DOTTED)
+  ) {
+    offset += isArrowToRight ? 0 : -CENTRAL_CONNECTION_BIDIRECTIONAL_OFFSET;
+  }
+
+  return offset;
+};
+
+/**
+ * Check if a message is a reverse arrow type
+ * @param msg - The message object
+ * @param diagObj - The diagram object containing LINETYPE constants
+ * @returns True if the message is a reverse arrow type
+ */
+const isReverseArrowType = function (msg, diagObj) {
+  const {
+    SOLID_ARROW_TOP_REVERSE,
+    SOLID_ARROW_TOP_REVERSE_DOTTED,
+    SOLID_ARROW_BOTTOM_REVERSE,
+    SOLID_ARROW_BOTTOM_REVERSE_DOTTED,
+    STICK_ARROW_TOP_REVERSE,
+    STICK_ARROW_TOP_REVERSE_DOTTED,
+    STICK_ARROW_BOTTOM_REVERSE,
+    STICK_ARROW_BOTTOM_REVERSE_DOTTED,
+  } = diagObj.db.LINETYPE;
+
+  return [
+    SOLID_ARROW_TOP_REVERSE,
+    SOLID_ARROW_TOP_REVERSE_DOTTED,
+    SOLID_ARROW_BOTTOM_REVERSE,
+    SOLID_ARROW_BOTTOM_REVERSE_DOTTED,
+    STICK_ARROW_TOP_REVERSE,
+    STICK_ARROW_TOP_REVERSE_DOTTED,
+    STICK_ARROW_BOTTOM_REVERSE,
+    STICK_ARROW_BOTTOM_REVERSE_DOTTED,
+  ].includes(msg.type);
+};
+
+/**
+ * Check if a message is a bidirectional arrow type
+ * @param msg - The message object
+ * @param diagObj - The diagram object containing LINETYPE constants
+ * @returns True if the message is a bidirectional arrow type
+ */
+const isBidirectionalArrowType = function (msg, diagObj) {
+  const { BIDIRECTIONAL_SOLID, BIDIRECTIONAL_DOTTED } = diagObj.db.LINETYPE;
+  return [BIDIRECTIONAL_SOLID, BIDIRECTIONAL_DOTTED].includes(msg.type);
+};
+
 const buildMessageModel = function (msg, actors, diagObj) {
+  const { look } = getConfig();
   if (
     ![
       diagObj.db.LINETYPE.SOLID_OPEN,
       diagObj.db.LINETYPE.DOTTED_OPEN,
       diagObj.db.LINETYPE.SOLID,
+
+      diagObj.db.LINETYPE.SOLID_TOP,
+      diagObj.db.LINETYPE.SOLID_BOTTOM,
+      diagObj.db.LINETYPE.STICK_TOP,
+      diagObj.db.LINETYPE.STICK_BOTTOM,
+
+      diagObj.db.LINETYPE.SOLID_TOP_DOTTED,
+      diagObj.db.LINETYPE.SOLID_BOTTOM_DOTTED,
+      diagObj.db.LINETYPE.STICK_TOP_DOTTED,
+      diagObj.db.LINETYPE.STICK_BOTTOM_DOTTED,
+
+      diagObj.db.LINETYPE.SOLID_ARROW_TOP_REVERSE,
+      diagObj.db.LINETYPE.SOLID_ARROW_BOTTOM_REVERSE,
+      diagObj.db.LINETYPE.STICK_ARROW_TOP_REVERSE,
+      diagObj.db.LINETYPE.STICK_ARROW_BOTTOM_REVERSE,
+
+      diagObj.db.LINETYPE.SOLID_ARROW_TOP_REVERSE_DOTTED,
+      diagObj.db.LINETYPE.SOLID_ARROW_BOTTOM_REVERSE_DOTTED,
+      diagObj.db.LINETYPE.STICK_ARROW_TOP_REVERSE_DOTTED,
+      diagObj.db.LINETYPE.STICK_ARROW_BOTTOM_REVERSE_DOTTED,
+
       diagObj.db.LINETYPE.DOTTED,
       diagObj.db.LINETYPE.SOLID_CROSS,
       diagObj.db.LINETYPE.DOTTED_CROSS,
       diagObj.db.LINETYPE.SOLID_POINT,
       diagObj.db.LINETYPE.DOTTED_POINT,
+      diagObj.db.LINETYPE.BIDIRECTIONAL_SOLID,
+      diagObj.db.LINETYPE.BIDIRECTIONAL_DOTTED,
     ].includes(msg.type)
   ) {
     return {};
@@ -1409,9 +1897,24 @@ const buildMessageModel = function (msg, actors, diagObj) {
   const [fromLeft, fromRight] = activationBounds(msg.from, actors);
   const [toLeft, toRight] = activationBounds(msg.to, actors);
   const isArrowToRight = fromLeft <= toLeft;
-  const startx = isArrowToRight ? fromRight : fromLeft;
+  let startx = isArrowToRight ? fromRight : fromLeft;
   let stopx = isArrowToRight ? toLeft : toRight;
 
+  if (look === 'neo') {
+    const offset = 3;
+    if (msg.type !== diagObj.db.LINETYPE.SOLID_OPEN) {
+      stopx += isArrowToRight ? -offset : offset;
+    }
+    if (
+      msg.type === diagObj.db.LINETYPE.BIDIRECTIONAL_SOLID ||
+      msg.type === diagObj.db.LINETYPE.BIDIRECTIONAL_DOTTED
+    ) {
+      startx += isArrowToRight ? offset : -offset;
+    }
+  }
+
+  // Apply central connection positioning adjustments
+  startx += calculateCentralConnectionOffset(msg, diagObj, isArrowToRight);
   // As the line width is considered, the left and right values will be off by 2.
   const isArrowToActivation = Math.abs(toLeft - toRight) > 2;
 
@@ -1445,8 +1948,47 @@ const buildMessageModel = function (msg, actors, diagObj) {
      * Shorten the length of arrow at the end and move the marker forward (using refX) to have a clean arrowhead
      * This is not required for open arrows that don't have arrowheads
      */
-    if (![diagObj.db.LINETYPE.SOLID_OPEN, diagObj.db.LINETYPE.DOTTED_OPEN].includes(msg.type)) {
+    if (
+      ![
+        diagObj.db.LINETYPE.SOLID_OPEN,
+        diagObj.db.LINETYPE.DOTTED_OPEN,
+
+        diagObj.db.LINETYPE.STICK_TOP,
+        diagObj.db.LINETYPE.STICK_BOTTOM,
+
+        diagObj.db.LINETYPE.STICK_TOP_DOTTED,
+        diagObj.db.LINETYPE.STICK_BOTTOM_DOTTED,
+
+        diagObj.db.LINETYPE.SOLID_ARROW_TOP_REVERSE_DOTTED,
+        diagObj.db.LINETYPE.SOLID_ARROW_BOTTOM_REVERSE_DOTTED,
+
+        diagObj.db.LINETYPE.STICK_ARROW_TOP_REVERSE,
+        diagObj.db.LINETYPE.STICK_ARROW_BOTTOM_REVERSE,
+
+        diagObj.db.LINETYPE.STICK_ARROW_TOP_REVERSE_DOTTED,
+        diagObj.db.LINETYPE.STICK_ARROW_BOTTOM_REVERSE_DOTTED,
+
+        diagObj.db.LINETYPE.SOLID_ARROW_TOP_REVERSE,
+        diagObj.db.LINETYPE.SOLID_ARROW_BOTTOM_REVERSE,
+      ].includes(msg.type)
+    ) {
       stopx += adjustValue(3);
+    }
+
+    /**
+     * Shorten start position of bidirectional arrow to accommodate for second arrowhead
+     */
+    if (
+      [
+        diagObj.db.LINETYPE.BIDIRECTIONAL_SOLID,
+        diagObj.db.LINETYPE.BIDIRECTIONAL_DOTTED,
+        diagObj.db.LINETYPE.SOLID_ARROW_TOP_REVERSE_DOTTED,
+        diagObj.db.LINETYPE.SOLID_ARROW_BOTTOM_REVERSE_DOTTED,
+        diagObj.db.LINETYPE.SOLID_ARROW_TOP_REVERSE,
+        diagObj.db.LINETYPE.SOLID_ARROW_BOTTOM_REVERSE,
+      ].includes(msg.type)
+    ) {
+      startx -= adjustValue(3);
     }
   }
 
@@ -1480,13 +2022,19 @@ const buildMessageModel = function (msg, actors, diagObj) {
   };
 };
 
-const calculateLoopBounds = function (messages, actors, _maxWidthPerActor, diagObj) {
+export const adjustValueByDirection = (msg, actors, value) => {
+  const [fromLeft] = activationBounds(msg.from, actors);
+  const [toLeft] = activationBounds(msg.to, actors);
+  const isArrowToRight = fromLeft <= toLeft;
+  return isArrowToRight ? -value : value;
+};
+
+const calculateLoopBounds = async function (messages, actors, _maxWidthPerActor, diagObj) {
   const loops = {};
   const stack = [];
   let current, noteModel, msgModel;
 
-  messages.forEach(function (msg) {
-    msg.id = utils.random({ length: 10 });
+  for (const msg of messages) {
     switch (msg.type) {
       case diagObj.db.LINETYPE.LOOP_START:
       case diagObj.db.LINETYPE.ALT_START:
@@ -1524,14 +2072,14 @@ const calculateLoopBounds = function (messages, actors, _maxWidthPerActor, diagO
         break;
       case diagObj.db.LINETYPE.ACTIVE_START:
         {
-          const actorRect = actors[msg.from ? msg.from.actor : msg.to.actor];
-          const stackedSize = actorActivations(msg.from ? msg.from.actor : msg.to.actor).length;
+          const actorRect = actors.get(msg.from ? msg.from : msg.to.actor);
+          const stackedSize = actorActivations(msg.from ? msg.from : msg.to.actor).length;
           const x =
             actorRect.x + actorRect.width / 2 + ((stackedSize - 1) * conf.activationWidth) / 2;
           const toAdd = {
             startx: x,
             stopx: x + conf.activationWidth,
-            actor: msg.from.actor,
+            actor: msg.from,
             enabled: true,
           };
           bounds.activations.push(toAdd);
@@ -1541,14 +2089,14 @@ const calculateLoopBounds = function (messages, actors, _maxWidthPerActor, diagO
         {
           const lastActorActivationIdx = bounds.activations
             .map((a) => a.actor)
-            .lastIndexOf(msg.from.actor);
-          delete bounds.activations.splice(lastActorActivationIdx, 1)[0];
+            .lastIndexOf(msg.from);
+          bounds.activations.splice(lastActorActivationIdx, 1).splice(0, 1);
         }
         break;
     }
     const isNote = msg.placement !== undefined;
     if (isNote) {
-      noteModel = buildNoteModel(msg, actors, diagObj);
+      noteModel = await buildNoteModel(msg, actors, diagObj);
       msg.noteModel = noteModel;
       stack.forEach((stk) => {
         current = stk;
@@ -1564,8 +2112,8 @@ const calculateLoopBounds = function (messages, actors, _maxWidthPerActor, diagO
         stack.forEach((stk) => {
           current = stk;
           if (msgModel.startx === msgModel.stopx) {
-            const from = actors[msg.from];
-            const to = actors[msg.to];
+            const from = actors.get(msg.from);
+            const to = actors.get(msg.to);
             current.from = common.getMin(
               from.x - msgModel.width / 2,
               from.x - from.width / 2,
@@ -1587,7 +2135,7 @@ const calculateLoopBounds = function (messages, actors, _maxWidthPerActor, diagO
         });
       }
     }
-  });
+  }
   bounds.activations = [];
   log.debug('Loop type widths:', loops);
   return loops;

@@ -1,10 +1,12 @@
 import { log } from '../logger.js';
 import createLabel from './createLabel.js';
 import { createText } from '../rendering-util/createText.js';
+import { computeLabelTransform } from '../rendering-util/labelTransform.js';
 import { line, curveBasis, select } from 'd3';
 import { getConfig } from '../diagram-api/diagramAPI.js';
+import { getEffectiveHtmlLabels } from '../config.js';
 import utils from '../utils.js';
-import { evaluate } from '../diagrams/common/common.js';
+import { getUrl } from '../diagrams/common/common.js';
 import { getLineFunctionsWithOffset } from '../utils/lineWithOffset.js';
 import { getSubGraphTitleMargins } from '../utils/subGraphTitleMargins.js';
 import { addEdgeMarkers } from './edgeMarker.js';
@@ -17,36 +19,53 @@ export const clear = () => {
   terminalLabels = {};
 };
 
-export const insertEdgeLabel = (elem, edge) => {
-  const useHtmlLabels = evaluate(getConfig().flowchart.htmlLabels);
-  // Create the actual text element
-  const labelElement =
-    edge.labelType === 'markdown'
-      ? createText(elem, edge.label, {
-          style: edge.labelStyle,
-          useHtmlLabels,
-          addSvgBackground: true,
-        })
-      : createLabel(edge.label, edge.labelStyle);
-  log.info('abc82', edge, edge.labelType);
+export const insertEdgeLabel = async (elem, edge) => {
+  const config = getConfig();
+  const useHtmlLabels = getEffectiveHtmlLabels(config);
 
   // Create outer g, edgeLabel, this will be positioned after graph layout
   const edgeLabel = elem.insert('g').attr('class', 'edgeLabel');
 
   // Create inner g, label, this will be positioned now for centering the text
   const label = edgeLabel.insert('g').attr('class', 'label');
+
+  // Create the actual text element
+  const isMarkdown = edge.labelType === 'markdown';
+  const labelElement = await createText(
+    elem,
+    edge.label,
+    {
+      style: edge.labelStyle,
+      useHtmlLabels,
+      // TODO: The old code only set addSvgBackground when using markdown, but
+      // this function is only used by block diagrams which never use markdown.
+      addSvgBackground: isMarkdown,
+      isNode: false,
+      markdown: isMarkdown,
+      // If using markdown, wrap using default width
+      width: isMarkdown ? undefined : Number.POSITIVE_INFINITY,
+    },
+    config
+  );
+
   label.node().appendChild(labelElement);
 
-  // Center the label
   let bbox = labelElement.getBBox();
+  let transformBbox = bbox;
   if (useHtmlLabels) {
     const div = labelElement.children[0];
     const dv = select(labelElement);
     bbox = div.getBoundingClientRect();
+    transformBbox = bbox;
     dv.attr('width', bbox.width);
     dv.attr('height', bbox.height);
+  } else {
+    const textEl = select(labelElement).select('text').node();
+    if (textEl && typeof textEl.getBBox === 'function') {
+      transformBbox = textEl.getBBox();
+    }
   }
-  label.attr('transform', 'translate(' + -bbox.width / 2 + ', ' + -bbox.height / 2 + ')');
+  label.attr('transform', computeLabelTransform(transformBbox, useHtmlLabels));
 
   // Make element accessible by id for positioning
   edgeLabels[edge.id] = edgeLabel;
@@ -58,12 +77,19 @@ export const insertEdgeLabel = (elem, edge) => {
   let fo;
   if (edge.startLabelLeft) {
     // Create the actual text element
-    const startLabelElement = createLabel(edge.startLabelLeft, edge.labelStyle);
     const startEdgeLabelLeft = elem.insert('g').attr('class', 'edgeTerminals');
     const inner = startEdgeLabelLeft.insert('g').attr('class', 'inner');
-    fo = inner.node().appendChild(startLabelElement);
-    const slBox = startLabelElement.getBBox();
-    inner.attr('transform', 'translate(' + -slBox.width / 2 + ', ' + -slBox.height / 2 + ')');
+    const startLabelElement = await createLabel(inner, edge.startLabelLeft, edge.labelStyle);
+    fo = startLabelElement;
+    let slBox = startLabelElement.getBBox();
+    if (useHtmlLabels) {
+      const div = startLabelElement.children[0];
+      const dv = select(startLabelElement);
+      slBox = div.getBoundingClientRect();
+      dv.attr('width', slBox.width);
+      dv.attr('height', slBox.height);
+    }
+    inner.attr('transform', computeLabelTransform(slBox, useHtmlLabels));
     if (!terminalLabels[edge.id]) {
       terminalLabels[edge.id] = {};
     }
@@ -71,14 +97,19 @@ export const insertEdgeLabel = (elem, edge) => {
     setTerminalWidth(fo, edge.startLabelLeft);
   }
   if (edge.startLabelRight) {
-    // Create the actual text element
-    const startLabelElement = createLabel(edge.startLabelRight, edge.labelStyle);
     const startEdgeLabelRight = elem.insert('g').attr('class', 'edgeTerminals');
     const inner = startEdgeLabelRight.insert('g').attr('class', 'inner');
-    fo = startEdgeLabelRight.node().appendChild(startLabelElement);
-    inner.node().appendChild(startLabelElement);
-    const slBox = startLabelElement.getBBox();
-    inner.attr('transform', 'translate(' + -slBox.width / 2 + ', ' + -slBox.height / 2 + ')');
+    const startLabelElement = await createLabel(inner, edge.startLabelRight, edge.labelStyle);
+    fo = startLabelElement;
+    let slBox = startLabelElement.getBBox();
+    if (useHtmlLabels) {
+      const div = startLabelElement.children[0];
+      const dv = select(startLabelElement);
+      slBox = div.getBoundingClientRect();
+      dv.attr('width', slBox.width);
+      dv.attr('height', slBox.height);
+    }
+    inner.attr('transform', computeLabelTransform(slBox, useHtmlLabels));
 
     if (!terminalLabels[edge.id]) {
       terminalLabels[edge.id] = {};
@@ -87,15 +118,20 @@ export const insertEdgeLabel = (elem, edge) => {
     setTerminalWidth(fo, edge.startLabelRight);
   }
   if (edge.endLabelLeft) {
-    // Create the actual text element
-    const endLabelElement = createLabel(edge.endLabelLeft, edge.labelStyle);
     const endEdgeLabelLeft = elem.insert('g').attr('class', 'edgeTerminals');
+    // TODO: Remove? `inner` is not used
     const inner = endEdgeLabelLeft.insert('g').attr('class', 'inner');
-    fo = inner.node().appendChild(endLabelElement);
-    const slBox = endLabelElement.getBBox();
-    inner.attr('transform', 'translate(' + -slBox.width / 2 + ', ' + -slBox.height / 2 + ')');
-
-    endEdgeLabelLeft.node().appendChild(endLabelElement);
+    const endLabelElement = await createLabel(endEdgeLabelLeft, edge.endLabelLeft, edge.labelStyle);
+    fo = endLabelElement;
+    let slBox = endLabelElement.getBBox();
+    if (useHtmlLabels) {
+      const div = endLabelElement.children[0];
+      const dv = select(endLabelElement);
+      slBox = div.getBoundingClientRect();
+      dv.attr('width', slBox.width);
+      dv.attr('height', slBox.height);
+    }
+    inner.attr('transform', computeLabelTransform(slBox, useHtmlLabels));
 
     if (!terminalLabels[edge.id]) {
       terminalLabels[edge.id] = {};
@@ -104,16 +140,25 @@ export const insertEdgeLabel = (elem, edge) => {
     setTerminalWidth(fo, edge.endLabelLeft);
   }
   if (edge.endLabelRight) {
-    // Create the actual text element
-    const endLabelElement = createLabel(edge.endLabelRight, edge.labelStyle);
     const endEdgeLabelRight = elem.insert('g').attr('class', 'edgeTerminals');
+    // TODO: Remove? `inner` is not used
     const inner = endEdgeLabelRight.insert('g').attr('class', 'inner');
+    const endLabelElement = await createLabel(
+      endEdgeLabelRight,
+      edge.endLabelRight,
+      edge.labelStyle
+    );
+    fo = endLabelElement;
+    let slBox = endLabelElement.getBBox();
+    if (useHtmlLabels) {
+      const div = endLabelElement.children[0];
+      const dv = select(endLabelElement);
+      slBox = div.getBoundingClientRect();
+      dv.attr('width', slBox.width);
+      dv.attr('height', slBox.height);
+    }
+    inner.attr('transform', computeLabelTransform(slBox, useHtmlLabels));
 
-    fo = inner.node().appendChild(endLabelElement);
-    const slBox = endLabelElement.getBBox();
-    inner.attr('transform', 'translate(' + -slBox.width / 2 + ', ' + -slBox.height / 2 + ')');
-
-    endEdgeLabelRight.node().appendChild(endLabelElement);
     if (!terminalLabels[edge.id]) {
       terminalLabels[edge.id] = {};
     }
@@ -128,14 +173,14 @@ export const insertEdgeLabel = (elem, edge) => {
  * @param {any} value
  */
 function setTerminalWidth(fo, value) {
-  if (getConfig().flowchart.htmlLabels && fo) {
+  if (getEffectiveHtmlLabels(getConfig()) && fo) {
     fo.style.width = value.length * 9 + 'px';
     fo.style.height = '12px';
   }
 }
 
 export const positionEdgeLabel = (edge, paths) => {
-  log.info('Moving label abc78 ', edge.id, edge.label, edgeLabels[edge.id]);
+  log.debug('Moving label abc88 ', edge.id, edge.label, edgeLabels[edge.id], paths);
   let path = paths.updatedPath ? paths.updatedPath : paths.originalPath;
   const siteConfig = getConfig();
   const { subGraphTitleTotalMargin } = getSubGraphTitleMargins(siteConfig);
@@ -146,7 +191,7 @@ export const positionEdgeLabel = (edge, paths) => {
     if (path) {
       //   // debugger;
       const pos = utils.calcLabelPosition(path);
-      log.info(
+      log.debug(
         'Moving label ' + edge.label + ' from (',
         x,
         ',',
@@ -155,7 +200,7 @@ export const positionEdgeLabel = (edge, paths) => {
         pos.x,
         ',',
         pos.y,
-        ') abc78'
+        ') abc88'
       );
       if (paths.updatedPath) {
         x = pos.x;
@@ -221,7 +266,6 @@ export const positionEdgeLabel = (edge, paths) => {
 };
 
 const outsideNode = (node, point) => {
-  // log.warn('Checking bounds ', node, point);
   const x = node.x;
   const y = node.y;
   const dx = Math.abs(point.x - x);
@@ -235,7 +279,7 @@ const outsideNode = (node, point) => {
 };
 
 export const intersection = (node, outsidePoint, insidePoint) => {
-  log.warn(`intersection calc abc89:
+  log.debug(`intersection calc abc89:
   outsidePoint: ${JSON.stringify(outsidePoint)}
   insidePoint : ${JSON.stringify(insidePoint)}
   node        : x:${node.x} y:${node.y} w:${node.width} h:${node.height}`);
@@ -248,29 +292,11 @@ export const intersection = (node, outsidePoint, insidePoint) => {
   let r = insidePoint.x < outsidePoint.x ? w - dx : w + dx;
   const h = node.height / 2;
 
-  // const edges = {
-  //   x1: x - w,
-  //   x2: x + w,
-  //   y1: y - h,
-  //   y2: y + h
-  // };
-
-  // if (
-  //   outsidePoint.x === edges.x1 ||
-  //   outsidePoint.x === edges.x2 ||
-  //   outsidePoint.y === edges.y1 ||
-  //   outsidePoint.y === edges.y2
-  // ) {
-  //   log.warn('abc89 calc equals on edge', outsidePoint, edges);
-  //   return outsidePoint;
-  // }
-
   const Q = Math.abs(outsidePoint.y - insidePoint.y);
   const R = Math.abs(outsidePoint.x - insidePoint.x);
-  // log.warn();
+
   if (Math.abs(y - outsidePoint.y) * w > Math.abs(x - outsidePoint.x) * h) {
     // Intersection is top or bottom of rect.
-    // let q = insidePoint.y < outsidePoint.y ? outsidePoint.y - h - y : y - h - outsidePoint.y;
     let q = insidePoint.y < outsidePoint.y ? outsidePoint.y - h - y : y - h - outsidePoint.y;
     r = (R * q) / Q;
     const res = {
@@ -289,11 +315,11 @@ export const intersection = (node, outsidePoint, insidePoint) => {
       res.y = outsidePoint.y;
     }
 
-    log.warn(`abc89 topp/bott calc, Q ${Q}, q ${q}, R ${R}, r ${r}`, res);
+    log.debug(`abc89 topp/bott calc, Q ${Q}, q ${q}, R ${R}, r ${r}`, res); // cspell: disable-line
 
     return res;
   } else {
-    // Intersection onn sides of rect
+    // Intersection on sides of rect
     if (insidePoint.x < outsidePoint.x) {
       r = outsidePoint.x - w - x;
     } else {
@@ -306,7 +332,7 @@ export const intersection = (node, outsidePoint, insidePoint) => {
     let _x = insidePoint.x < outsidePoint.x ? insidePoint.x + R - r : insidePoint.x - R + r;
     // let _x = insidePoint.x < outsidePoint.x ? insidePoint.x + R - r : outsidePoint.x + r;
     let _y = insidePoint.y < outsidePoint.y ? insidePoint.y + q : insidePoint.y - q;
-    log.warn(`sides calc abc89, Q ${Q}, q ${q}, R ${R}, r ${r}`, { _x, _y });
+    log.debug(`sides calc abc89, Q ${Q}, q ${q}, R ${R}, r ${r}`, { _x, _y });
     if (r === 0) {
       _x = outsidePoint.x;
       _y = outsidePoint.y;
@@ -326,25 +352,20 @@ export const intersection = (node, outsidePoint, insidePoint) => {
  * and return an update path ending by the border of the node.
  *
  * @param {Array} _points
- * @param {any} boundryNode
+ * @param {any} boundaryNode
  * @returns {Array} Points
  */
-const cutPathAtIntersect = (_points, boundryNode) => {
-  log.warn('abc88 cutPathAtIntersect', _points, boundryNode);
+const cutPathAtIntersect = (_points, boundaryNode) => {
+  log.debug('abc88 cutPathAtIntersect', _points, boundaryNode);
   let points = [];
   let lastPointOutside = _points[0];
   let isInside = false;
   _points.forEach((point) => {
-    // const node = clusterDb[edge.toCluster].node;
-    log.info('abc88 checking point', point, boundryNode);
-
     // check if point is inside the boundary rect
-    if (!outsideNode(boundryNode, point) && !isInside) {
+    if (!outsideNode(boundaryNode, point) && !isInside) {
       // First point inside the rect found
-      // Calc the intersection coord between the point anf the last point outside the rect
-      const inter = intersection(boundryNode, lastPointOutside, point);
-      log.warn('abc88 inside', point, lastPointOutside, inter);
-      log.warn('abc88 intersection', inter);
+      // Calc the intersection coord between the point and the last point outside the rect
+      const inter = intersection(boundaryNode, lastPointOutside, point);
 
       // // Check case where the intersection is the same as the last point
       let pointPresent = false;
@@ -354,14 +375,11 @@ const cutPathAtIntersect = (_points, boundryNode) => {
       // // if (!pointPresent) {
       if (!points.some((e) => e.x === inter.x && e.y === inter.y)) {
         points.push(inter);
-      } else {
-        log.warn('abc88 no intersect', inter, points);
       }
-      // points.push(inter);
+
       isInside = true;
     } else {
       // Outside
-      log.warn('abc88 outside', point, lastPointOutside);
       lastPointOutside = point;
       // points.push(point);
       if (!isInside) {
@@ -369,67 +387,31 @@ const cutPathAtIntersect = (_points, boundryNode) => {
       }
     }
   });
-  log.warn('abc88 returning points', points);
   return points;
 };
 
 export const insertEdge = function (elem, e, edge, clusterDb, diagramType, graph, id) {
   let points = edge.points;
+  log.debug('abc88 InsertEdge: edge=', edge, 'e=', e);
   let pointsHasChanged = false;
   const tail = graph.node(e.v);
   var head = graph.node(e.w);
 
-  log.info('abc88 InsertEdge: ', edge);
-  if (head.intersect && tail.intersect) {
+  if (head?.intersect && tail?.intersect) {
     points = points.slice(1, edge.points.length - 1);
     points.unshift(tail.intersect(points[0]));
-    log.info(
-      'Last point',
-      points[points.length - 1],
-      head,
-      head.intersect(points[points.length - 1])
-    );
     points.push(head.intersect(points[points.length - 1]));
   }
+
   if (edge.toCluster) {
-    log.info('to cluster abc88', clusterDb[edge.toCluster]);
+    log.debug('to cluster abc88', clusterDb[edge.toCluster]);
     points = cutPathAtIntersect(edge.points, clusterDb[edge.toCluster].node);
-    // log.trace('edge', edge);
-    // points = [];
-    // let lastPointOutside; // = edge.points[0];
-    // let isInside = false;
-    // edge.points.forEach(point => {
-    //   const node = clusterDb[edge.toCluster].node;
-    //   log.warn('checking from', edge.fromCluster, point, node);
 
-    //   if (!outsideNode(node, point) && !isInside) {
-    //     log.trace('inside', edge.toCluster, point, lastPointOutside);
-
-    //     // First point inside the rect
-    //     const inter = intersection(node, lastPointOutside, point);
-
-    //     let pointPresent = false;
-    //     points.forEach(p => {
-    //       pointPresent = pointPresent || (p.x === inter.x && p.y === inter.y);
-    //     });
-    //     // if (!pointPresent) {
-    //     if (!points.find(e => e.x === inter.x && e.y === inter.y)) {
-    //       points.push(inter);
-    //     } else {
-    //       log.warn('no intersect', inter, points);
-    //     }
-    //     isInside = true;
-    // } else {
-    //   // outside
-    //   lastPointOutside = point;
-    //   if (!isInside) points.push(point);
-    // }
-    // });
     pointsHasChanged = true;
   }
 
   if (edge.fromCluster) {
-    log.info('from cluster abc88', clusterDb[edge.fromCluster]);
+    log.debug('from cluster abc88', clusterDb[edge.fromCluster]);
     points = cutPathAtIntersect(points.reverse(), clusterDb[edge.fromCluster].node).reverse();
 
     pointsHasChanged = true;
@@ -498,17 +480,8 @@ export const insertEdge = function (elem, e, edge, clusterDb, diagramType, graph
   let url = '';
   // // TODO: Can we load this config only from the rendered graph type?
   if (getConfig().flowchart.arrowMarkerAbsolute || getConfig().state.arrowMarkerAbsolute) {
-    url =
-      window.location.protocol +
-      '//' +
-      window.location.host +
-      window.location.pathname +
-      window.location.search;
-    url = url.replace(/\(/g, '\\(');
-    url = url.replace(/\)/g, '\\)');
+    url = getUrl(true);
   }
-  log.info('arrowTypeStart', edge.arrowTypeStart);
-  log.info('arrowTypeEnd', edge.arrowTypeEnd);
 
   addEdgeMarkers(svgPath, edge, url, id, diagramType);
 

@@ -6,42 +6,59 @@
 
 # Mermaid Chart
 
+The Future of Diagramming & Visual Collaboration
+
+Try the Ultimate AI, Mermaid, and Visual Diagramming Suite by creating an account at [Mermaid Chart](https://mermaid.ai/app/sign-up).
+
 <br />
 
-<a href="https://www.producthunt.com/posts/mermaid-chart?utm_source=badge-featured&utm_medium=badge&utm_souce=badge-mermaid&#0045;chart" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=416671&theme=light" alt="Mermaid&#0032;Chart - A&#0032;smarter&#0032;way&#0032;to&#0032;create&#0032;diagrams | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
+<a href="https://www.producthunt.com/products/mermaid-chart?utm_source=badge-follow&utm_medium=badge&utm_souce=badge-mermaid&#0045;chart" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/follow.svg?product_id=552855&theme=light" alt="Mermaid&#0032;Chart - A&#0032;smarter&#0032;way&#0032;to&#0032;create&#0032;diagrams | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
 
 ## About
 
-[Mermaid Chart](https://www.mermaidchart.com) was born out of the Mermaid open source project and was founded by Knut Sveidqvist together with Open Core Ventures. The lead developers from Mermaid have joined the company and there is a strong connection between the project we all love and Mermaid Chart. Mermaid Chart brings resources to the open source development of Mermaid and makes it possible to work with Mermaid professionally.
+[Mermaid Chart](https://mermaid.ai) was born out of the Mermaid open source project and was founded by Knut Sveidqvist together with Open Core Ventures. The lead developers from Mermaid have joined the company and there is a strong connection between the project we all love and Mermaid Chart. Mermaid Chart brings resources to the open source development of Mermaid and makes it possible to work with Mermaid professionally.
 
 ## Features
 
 - **Editor** - A web based editor for creating and editing Mermaid diagrams.
 
-- **Presentation** - A presentation mode for viewing Mermaid diagrams in a slideshow format.
+- **Mermaid AI** - Use our embedded AI Chat to generate diagrams from natural language descriptions.
 
-- **Collaboration** - A web based collaboration feature for multi-user editing on Mermaid diagrams in real-time (Pro plan).
+- **Whiteboard** - A virtual whiteboard for creating and editing Mermaid diagrams.
 
-- **Plugins** - A plugin system for extending the functionality of Mermaid. Currently includes [VS Code](https://marketplace.visualstudio.com/items?itemName=MermaidChart.vscode-mermaid-chart) and [ChatGPT](https://www.mermaidchart.com/plugins/chatgpt).
+- **Plugins** - A plugin system for extending the functionality of Mermaid.
 
-- **AI** - An AI chatbot that can generate Mermaid diagrams from text (Pro plan).
+  Official Mermaid Chart plugins:
+  - [Mermaid Chart GPT](https://chatgpt.com/g/g-684cc36f30208191b21383b88650a45d-mermaid-chart-diagrams-and-charts)
+  - [Confluence](https://marketplace.atlassian.com/apps/1234056/mermaid-chart-for-confluence?hosting=cloud&tab=overview)
+  - [Jira](https://marketplace.atlassian.com/apps/1234810/mermaid-chart-for-jira?tab=overview&hosting=cloud)
+  - [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=MermaidChart.vscode-mermaid-chart)
+  - [JetBrains IDE](https://plugins.jetbrains.com/plugin/23043-mermaid-chart)
+  - [Google Docs](https://gsuite.google.com/marketplace/app/mermaidchart/947683068472)
+  - [Microsoft PowerPoint and Word](https://appsource.microsoft.com/en-us/product/office/WA200006214?tab=Overview)
 
-- **More** - To learn more, visit our [Product](https://www.mermaidchart.com/product) page.
+  Visit our [Plugins](https://mermaid.ai/plugins) page for more information.
+
+- **Collaboration** - A web based collaboration feature for multi-user editing on Mermaid diagrams in real-time (Pro and Enterprise plans).
+
+- **Comments** - Enhance collaboration by adding comments to diagrams.
+
+- **Presentations** - A presentation mode for viewing Mermaid diagrams in a slideshow format.
 
 ## Plans
 
-- **Free** - A free plan that includes five diagrams.
+- **Basic** - A free plan that includes three diagrams and limited AI usage.
 
-- **Pro** - A paid plan that includes unlimited diagrams, access to the collaboration feature, and more.
+- **Plus** - A paid plan that includes unlimited diagrams, scalable AI usage, and centralized billing for small teams.
 
-- **Enterprise** - A paid plan for enterprise use that includes all Pro features, and more.
+- **Premium** - A paid plan for larger teams that need massive AI or diagram usage along with team collaboration, knowledge management, and security features like SSO.
 
-## Access
+- **Enterprise** - A paid plan for enterprise use that includes all Premium features, custom contracts, support, and more.
 
-Sign up for a free account at [Mermaid Chart](https://www.mermaidchart.com/app/sign-up).
+To learn more, visit our [Pricing](https://mermaid.ai/pricing) page.
 
-Mermaid Chart is currently offering a 30-day free trial of our newly-launched Pro tier. To learn more, visit our [Pricing](https://mermaidchart.com/pricing) page.
+Sign up for a free account on the [Mermaid](https://mermaid.ai/app/sign-up) website and trial paid features at any time for 7 days free.
 
 ## Mermaid JS contributions
 
-First time contributors are eligible for a free Pro tier account for 1 year.
+First time contributors are eligible for a free Premium tier account for 1 year.
