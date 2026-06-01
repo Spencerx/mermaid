@@ -505,7 +505,7 @@ treemap-beta
   });
   */
 
-  it('14: should render labels in complex treemap with many nested blocks', () => {
+  it('19: should render labels in complex treemap with many nested blocks', () => {
     imgSnapshotTest(
       `treemap-beta
     "🔴 High Activity (Top 50%)":::redContainer
