@@ -69,6 +69,8 @@ sphinxcontrib
 ssim
 stylis
 Swimm
+Tachi
+termaid
 tsbuildinfo
 tseslint
 Tuleap
