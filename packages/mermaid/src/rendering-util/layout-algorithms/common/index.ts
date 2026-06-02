@@ -164,47 +164,80 @@ export async function paintLayoutData(
 
   // Render clusters and position nodes; this also populates node.intersect on shapes.
   for (const node of data4Layout.nodes) {
-    if (node.isGroup) {
-      await insertCluster(groups.clusters, node);
-    } else {
-      positionNode(node);
-    }
+    await paintLayoutNode(groups, node);
   }
 
-  const nodeById = new Map<string, unknown>();
-  for (const node of data4Layout.nodes) {
+  const nodeById = buildNodeLookup(data4Layout.nodes);
+
+  for (const edge of data4Layout.edges) {
+    if (shouldSkipPaintEdge(edge, options)) {
+      continue;
+    }
+
+    await paintLayoutEdge(groups, edge, nodeById, data4Layout, options);
+  }
+}
+
+async function paintLayoutNode(
+  groups: CommonLayoutMeasure['groups'],
+  node: LayoutData['nodes'][number]
+): Promise<void> {
+  if (node.isGroup) {
+    await insertCluster(groups.clusters, node);
+  } else {
+    positionNode(node);
+  }
+}
+
+function buildNodeLookup(nodes: LayoutData['nodes']): Map<string, LayoutData['nodes'][number]> {
+  const nodeById = new Map<string, LayoutData['nodes'][number]>();
+  for (const node of nodes) {
     if (node?.id) {
       nodeById.set(node.id, node);
     }
   }
+  return nodeById;
+}
 
-  for (const edge of data4Layout.edges) {
-    if (edge.isLayoutOnly || options.skipEdge?.(edge)) {
-      continue;
-    }
+function shouldSkipPaintEdge(edge: Edge, options: CommonLayoutPaintOptions): boolean {
+  return edge.isLayoutOnly || Boolean(options.skipEdge?.(edge));
+}
 
-    const startNode = edge.start ? (nodeById.get(edge.start) ?? {}) : {};
-    const endNode = edge.end ? (nodeById.get(edge.end) ?? {}) : {};
-    const skipIntersect =
-      typeof options.skipIntersect === 'function'
-        ? options.skipIntersect(edge)
-        : (options.skipIntersect ?? false);
+async function paintLayoutEdge(
+  groups: CommonLayoutMeasure['groups'],
+  edge: Edge,
+  nodeById: Map<string, LayoutData['nodes'][number]>,
+  data4Layout: LayoutData,
+  options: CommonLayoutPaintOptions
+): Promise<void> {
+  const paths = insertEdge(
+    groups.edgePaths,
+    { ...edge },
+    {},
+    data4Layout.type,
+    getRenderedNode(edge.start, nodeById),
+    getRenderedNode(edge.end, nodeById),
+    data4Layout.diagramId,
+    shouldSkipIntersect(edge, options)
+  ) as EdgeRenderPaths | undefined;
 
-    const paths = insertEdge(
-      groups.edgePaths,
-      { ...edge },
-      {},
-      data4Layout.type,
-      startNode,
-      endNode,
-      data4Layout.diagramId,
-      skipIntersect
-    ) as EdgeRenderPaths | undefined;
-    if (edge.label) {
-      await insertEdgeLabel(groups.rootGroups, edge);
-      positionRenderedEdgeLabel(edge, paths);
-    }
+  if (edge.label) {
+    await insertEdgeLabel(groups.rootGroups, edge);
+    positionRenderedEdgeLabel(edge, paths);
   }
+}
+
+function getRenderedNode(
+  id: string | undefined,
+  nodeById: Map<string, LayoutData['nodes'][number]>
+): LayoutData['nodes'][number] | object {
+  return id ? (nodeById.get(id) ?? {}) : {};
+}
+
+function shouldSkipIntersect(edge: Edge, options: CommonLayoutPaintOptions): boolean {
+  return typeof options.skipIntersect === 'function'
+    ? options.skipIntersect(edge)
+    : (options.skipIntersect ?? false);
 }
 
 function positionRenderedEdgeLabel(edge: RenderedEdge, paths?: EdgeRenderPaths): void {
