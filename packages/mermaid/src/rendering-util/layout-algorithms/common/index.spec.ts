@@ -333,7 +333,7 @@ describe('paintLayoutData', () => {
 
     await paintLayoutData(data, { measure: measured } as never);
 
-    expect(mocks.insertEdgeLabel).toHaveBeenCalledWith(measured.groups.rootGroups, labelledEdge);
+    expect(mocks.insertEdgeLabel).toHaveBeenCalledWith(measured.groups.edgeLabels, labelledEdge);
     expect(mocks.labelElement.attr).toHaveBeenCalledWith('transform', 'translate(10, 22)');
   });
 });

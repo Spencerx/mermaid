@@ -222,7 +222,9 @@ async function paintLayoutEdge(
   ) as EdgeRenderPaths | undefined;
 
   if (edge.label) {
-    await insertEdgeLabel(groups.rootGroups, edge);
+    if (!edgeLabels.has(edge.id)) {
+      await insertEdgeLabel(groups.edgeLabels, edge);
+    }
     positionRenderedEdgeLabel(edge, paths);
   }
 }
@@ -263,7 +265,7 @@ function positionRenderedEdgeLabel(edge: RenderedEdge, paths?: EdgeRenderPaths):
         pos.y,
         ') abc88'
       );
-      if (paths) {
+      if (paths?.updatedPath) {
         x = pos.x;
         y = pos.y;
       }
