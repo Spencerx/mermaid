@@ -25,6 +25,12 @@ export interface LayoutScores {
   crossings: number;
   rankFaithfulness: number;
   neighborhoodPreservation: number;
+  /**
+   * NOT YET IMPLEMENTED — always `NaN`. Symmetry detection is unfinished, so
+   * this is a placeholder. A NaN value fails any threshold a caller sets on it
+   * (see `evaluateThresholds`), and no current caller scores against it, so the
+   * overall layout assessment is not symmetry-aware. TODO: implement.
+   */
   symmetryScore: number;
   boundingBoxArea: number;
   straightEdgeRatio: number;
@@ -576,8 +582,11 @@ export function scoreLayout(
   // 7. neighborhoodPreservation
   const neighborhoodPreservation = computeNeighborhoodPreservation(leafNodes, edgeRefs);
 
-  // 8. symmetryScore
-  // TODO: Implement symmetry detection
+  // 8. symmetryScore — NOT YET IMPLEMENTED.
+  // Returns NaN as an explicit "not computed" sentinel. No caller currently sets
+  // a symmetryScore threshold, and evaluateThresholds() treats NaN as a failing
+  // value, so this never contributes a passing signal and the overall score is
+  // not symmetry-aware. TODO: implement symmetry detection.
   const symmetryScore = NaN;
 
   const scores: LayoutScores = {
