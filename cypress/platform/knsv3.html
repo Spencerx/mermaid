@@ -409,7 +409,7 @@ flowchart LR
 
     </pre>
     <pre class="mermaid">
-swimlanes LR
+swimlane LR
   subgraph Customer
     request[Request service]
     receive[Receive update]
@@ -486,7 +486,7 @@ flowchart LR
       await mermaid.initialize({
         theme: 'redux',
         look: 'neo',
-        layout: 'swimlanes',
+        // layout: 'swimlane',
         flowchart: {
           titleTopMargin: 10,
           ignoreCrossLaneEdges: true,

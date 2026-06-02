@@ -327,7 +327,7 @@ export const positionEdgeLabel = (edge, paths) => {
 
 // Swimlanes-only helper, kept module-private: it self-gates to `-to-label` edges
 // (the swimlanes edge-label waypoint mechanism) and is called only from insertEdge's
-// `layout === 'swimlanes'` branch, so it is a no-op for every other layout.
+// `layout === 'swimlane'` branch, so it is a no-op for every other layout.
 const orthogonalizeToLabelClippedPoints = (edge, points) => {
   if (!edge?.isLabelEdge || !edge?.id?.endsWith('-to-label') || !Array.isArray(points)) {
     return points;
@@ -600,7 +600,7 @@ export const insertEdge = function (
   // axis-aligned entry/exit segments must be preserved, so it uses a dedicated
   // boundary-clipping path. Every other layout (dagre, ELK, …) keeps the original
   // clipping below, so their edge ports are unaffected by swimlanes.
-  if (layout === 'swimlanes') {
+  if (layout === 'swimlane') {
     if (head.intersect && tail.intersect && Array.isArray(points) && points.length >= 2) {
       if (points.length === 2) {
         // Simple straight edge: just clip the two endpoints to the node boundaries.

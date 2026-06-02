@@ -60,10 +60,10 @@ function edgesCross(a: EdgeLike | undefined, b: EdgeLike | undefined): boolean {
 }
 
 describe('Swimlanes DDLT — 10-node-placement.mmd', () => {
-  it('Level 0: source fixture opts into the swimlanes renderer', () => {
+  it('Level 0: source fixture opts into the swimlane renderer', () => {
     const source = readFileSync(FIXTURE_PATH, 'utf8');
 
-    expect(source).toMatch(/layout:\s*swimlanes/);
+    expect(source).toMatch(/^\s*swimlane\b/m);
   });
 
   it('Level 1: validateLayout — produces a valid orthogonal layout', async () => {

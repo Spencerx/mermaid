@@ -4,7 +4,7 @@ import type {
   ExternalDiagramDefinition,
 } from '../../diagram-api/types.js';
 
-const id = 'swimlanes';
+const id = 'swimlane';
 
 const detector: DiagramDetector = (txt) => {
   return /^\s*swimlane\b/.test(txt);

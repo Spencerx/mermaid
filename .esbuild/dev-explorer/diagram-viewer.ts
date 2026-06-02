@@ -87,7 +87,7 @@ type MermaidTheme =
   | 'redux'
   | 'redux-dark'
   | 'redux-color';
-type MermaidLayout = 'dagre' | 'elk' | 'domus' | 'hola' | 'swimlanes';
+type MermaidLayout = 'dagre' | 'elk' | 'domus' | 'hola' | 'swimlane';
 type MermaidLook = 'classic' | 'handDrawn' | 'neo';
 type MermaidLogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 type ViewerTab = 'diagram' | 'code';
@@ -144,7 +144,7 @@ function isTheme(v: unknown): v is MermaidTheme {
 }
 
 function isLayout(v: unknown): v is MermaidLayout {
-  return v === 'dagre' || v === 'elk' || v === 'domus' || v === 'hola' || v === 'swimlanes';
+  return v === 'dagre' || v === 'elk' || v === 'domus' || v === 'hola' || v === 'swimlane';
 }
 
 function isLook(v: unknown): v is MermaidLook {
@@ -161,13 +161,13 @@ function normalizeLayout(v: unknown): MermaidLayout | null {
   // Back-compat:
   // - older UI used `renderer=dagre-d3|dagre-wrapper|elk`
   // - new UI uses `layout=dagre|elk|domus`
-  if (v === 'dagre' || v === 'elk' || v === 'domus' || v === 'hola' || v === 'swimlanes') return v;
+  if (v === 'dagre' || v === 'elk' || v === 'domus' || v === 'hola' || v === 'swimlane') return v;
   if (v === 'dagre-d3' || v === 'dagre-wrapper') return 'dagre';
   return null;
 }
 
 function sizeCaptureUnavailableReason(layout: MermaidLayout) {
-  if (layout !== 'swimlanes') {
+  if (layout !== 'swimlane') {
     return 'No size data is available for this layout. Select swimlanes to capture DDLT sizes.';
   }
   return '';
@@ -844,7 +844,7 @@ export class DevDiagramViewer extends LitElement {
               <sl-option value="elk">elk</sl-option>
               <sl-option value="domus">domus</sl-option>
               <sl-option value="hola">hola</sl-option>
-              <sl-option value="swimlanes">swimlanes</sl-option>
+              <sl-option value="swimlane">swimlane</sl-option>
             </sl-select>
           </div>
 

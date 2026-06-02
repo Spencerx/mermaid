@@ -18,12 +18,12 @@ describe('swimlanesDiagram', () => {
   beforeEach(resetConfig);
   afterEach(resetConfig);
 
-  it('defaults the shared flowchart renderer to the swimlanes layout', () => {
+  it('defaults the shared flowchart renderer to the swimlane layout', () => {
     expect(getUserDefinedConfig().layout).toBeUndefined();
 
     diagram.init?.(getConfig());
 
-    expect(getConfig().layout).toBe('swimlanes');
+    expect(getConfig().layout).toBe('swimlane');
   });
 
   it('keeps an explicit layout override', () => {

@@ -761,7 +761,7 @@ describe('mermaidAPI', () => {
       await expect(mermaidAPI.parse('swimlane TD;A-->B;')).resolves.toMatchInlineSnapshot(`
         {
           "config": {},
-          "diagramType": "swimlanes",
+          "diagramType": "swimlane",
         }
       `);
     });

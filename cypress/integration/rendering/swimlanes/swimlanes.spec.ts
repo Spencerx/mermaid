@@ -88,7 +88,7 @@ const renderSwimlanes = (
 };
 
 const assertStandaloneSwimlanesRendered = (): void => {
-  cy.get('svg').should('have.attr', 'aria-roledescription', 'swimlanes');
+  cy.get('svg').should('have.attr', 'aria-roledescription', 'swimlane');
   cy.get('svg .error-icon').should('not.exist');
   cy.get('g.cluster.swimlane').its('length').should('be.greaterThan', 0);
   // Nodes are `g.node` in the classic look and `g.rough-node` in handdrawn/rough.

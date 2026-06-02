@@ -76,7 +76,7 @@ export async function parseApplySizesAndLayout(
     domusBackendUnavailable();
   }
   const layout = await parseMmdFileToLayoutData(mmdPath, { stampFlowchartRendererFields: true });
-  (layout as { layoutAlgorithm?: string }).layoutAlgorithm = 'swimlanes';
+  (layout as { layoutAlgorithm?: string }).layoutAlgorithm = 'swimlane';
   runSwimlanesDdlt(layout, sizes);
   return layout;
 }
