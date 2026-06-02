@@ -6,6 +6,8 @@
 
 # Swimlanes Diagram
 
+> Available since MERMAID_RELEASE_VERSION.
+
 > **Warning**
 > This is a new diagram type in Mermaid. Its syntax may evolve in future versions.
 
