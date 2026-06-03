@@ -3,6 +3,7 @@ import {
   buildElkGraphFromLayoutData,
   buildSubgraphLayoutOptions,
   dir2ElkDirection,
+  ensureEndMarkerSegmentLength,
 } from '../render.js';
 
 describe('buildSubgraphLayoutOptions', () => {
@@ -108,5 +109,48 @@ describe('buildElkGraphFromLayoutData', () => {
     const edge = state.elkGraph.edges[0];
     expect(edge.labels[0]).toMatchObject({ width: 22, height: 10, text: 'go' });
     expect(edge.labelEl).toBeUndefined();
+  });
+});
+
+describe('ensureEndMarkerSegmentLength', () => {
+  const log = { debug: () => undefined };
+  const circleBounds = {
+    x: 138.88020833333334,
+    y: 607.4296875,
+    width: 140.265625,
+    height: 140.265625,
+  };
+
+  it('removes the target bbox entry point when the final marker segment is too short', () => {
+    const points = [
+      { x: 162.2578125, y: 497.296875 },
+      { x: 162.2578125, y: 537.296875 },
+      { x: 161.05815095468608, y: 540.8958596359416 },
+    ];
+
+    expect(ensureEndMarkerSegmentLength(points, circleBounds, 4, log)).toEqual([
+      points[0],
+      points[2],
+    ]);
+  });
+
+  it('keeps real bends that are not on the target bounds', () => {
+    const points = [
+      { x: 120, y: 500 },
+      { x: 130, y: 532 },
+      { x: 132, y: 535 },
+    ];
+
+    expect(ensureEndMarkerSegmentLength(points, circleBounds, 4, log)).toEqual(points);
+  });
+
+  it('keeps target entry segments that already have marker runway', () => {
+    const points = [
+      { x: 162.2578125, y: 497.296875 },
+      { x: 162.2578125, y: 537.296875 },
+      { x: 162.2578125, y: 550 },
+    ];
+
+    expect(ensureEndMarkerSegmentLength(points, circleBounds, 4, log)).toEqual(points);
   });
 });

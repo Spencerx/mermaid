@@ -91,6 +91,11 @@ interface ElkLayoutResult {
 
 type Side = 'start' | 'end';
 
+const END_MARKER_PATH_OFFSETS: Record<string, number> = {
+  arrow_point: 4,
+};
+const MIN_END_MARKER_SEGMENT_LENGTH = 8;
+
 const ARROW_MAP: Record<string, [string, string]> = {
   arrow_open: ['arrow_open', 'arrow_open'],
   arrow_cross: ['arrow_open', 'arrow_cross'],
@@ -650,7 +655,12 @@ function applyElkEdgeLayout(
       points.push({ x: endNode.x, y: endNode.y });
     }
 
-    layoutEdge.points = sanitizeElkEdgePoints(points, startNode, endNode, log);
+    layoutEdge.points = ensureEndMarkerSegmentLength(
+      sanitizeElkEdgePoints(points, startNode, endNode, log),
+      boundsFor(endNode),
+      getEndMarkerPathOffset(layoutEdge),
+      log
+    );
     layoutEdge.curve = 'rounded';
 
     const label = edge.labels?.[0];
@@ -789,6 +799,42 @@ function dedupeConsecutivePoints(points: P[], log: ElkLayoutContext['log']): P[]
     });
   }
   return deduped;
+}
+
+function getEndMarkerPathOffset(edge: Edge): number {
+  const arrowTypeEnd = (edge as { arrowTypeEnd?: unknown }).arrowTypeEnd;
+  return typeof arrowTypeEnd === 'string' ? (END_MARKER_PATH_OFFSETS[arrowTypeEnd] ?? 0) : 0;
+}
+
+export function ensureEndMarkerSegmentLength(
+  points: P[],
+  endBounds: RectLike,
+  markerOffset: number,
+  log: { debug: (...args: unknown[]) => void }
+): P[] {
+  if (markerOffset <= 0 || points.length < 3) {
+    return points;
+  }
+
+  const end = points[points.length - 1];
+  const entry = points[points.length - 2];
+  const segmentLength = Math.hypot(end.x - entry.x, end.y - entry.y);
+  if (segmentLength >= Math.max(MIN_END_MARKER_SEGMENT_LENGTH, markerOffset * 2)) {
+    return points;
+  }
+
+  if (!onBorder(endBounds, entry, 1)) {
+    return points;
+  }
+
+  const adjusted = [...points.slice(0, -2), end];
+  log.debug('UIO cutter2: removed short end marker segment', {
+    before: points,
+    after: adjusted,
+    markerOffset,
+    segmentLength,
+  });
+  return adjusted;
 }
 
 function applyElkEdgeRenderData(data4Layout: LayoutData, elkContext: ElkLayoutContext): void {
