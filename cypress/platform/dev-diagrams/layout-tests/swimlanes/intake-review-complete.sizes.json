@@ -38,8 +38,8 @@
   ],
   "metadata": {
     "captureVersion": 1,
-    "sourceSha256": "15fea6e96eefc9a4a0f43681e1e26e1c499b758a653bd684e53d2fc270fca8bb",
+    "sourceSha256": "ff52d9063be4e293f5db4e34e06cc9b7a96a3ce29f2927a416ee04ed711f5a22",
     "capturedAt": "2026-05-29T10:37:56.108Z",
-    "capturedFrom": "dev-explorer layout-tests/swimlanes/intake-review-complete.mmd theme=redux-dark look=classic layout=swimlanes"
+    "capturedFrom": "dev-explorer layout-tests/swimlanes/intake-review-complete.mmd theme=redux-dark look=classic layout=swimlane"
   }
 }

@@ -19,7 +19,7 @@ describe('diagram-orchestration', () => {
       { text: 'flowchart TD;', expected: 'flowchart-v2' },
       { text: 'flowchart-v2 TD;', expected: 'flowchart-v2' },
       { text: 'flowchart-elk TD;', expected: 'flowchart-elk' },
-      { text: 'swimlanes TD;', expected: 'swimlanes' },
+      { text: 'swimlane TD;', expected: 'swimlane' },
       { text: 'error', expected: 'error' },
       { text: 'C4Context;', expected: 'c4' },
       { text: 'classDiagram', expected: 'class' },
@@ -71,8 +71,8 @@ describe('diagram-orchestration', () => {
       expect(detectType('flowchart TD; A-->B', { flowchart: { defaultRenderer: 'elk' } })).toBe(
         'flowchart-elk'
       );
-      expect(detectType('swimlanes TD; A-->B', { flowchart: { defaultRenderer: 'elk' } })).toBe(
-        'swimlanes'
+      expect(detectType('swimlane TD; A-->B', { flowchart: { defaultRenderer: 'elk' } })).toBe(
+        'swimlane'
       );
     });
 

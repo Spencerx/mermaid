@@ -29,13 +29,13 @@ describe('createFlowDiagram init — layout precedence', () => {
 
   it('a user-defined (%%{init}%%) layout wins over defaultLayout and site config', () => {
     vi.mocked(getUserDefinedConfig).mockReturnValue({ layout: 'elk' } as never);
-    createFlowDiagram({ defaultLayout: 'swimlanes' }).init?.({ layout: 'dagre' } as never);
+    createFlowDiagram({ defaultLayout: 'swimlane' }).init?.({ layout: 'dagre' } as never);
     expect(layoutSetByInit()).toBe('elk');
   });
 
-  it('defaultLayout (e.g. swimlanes) wins over the site-config layout when no user override is set', () => {
-    createFlowDiagram({ defaultLayout: 'swimlanes' }).init?.({ layout: 'dagre' } as never);
-    expect(layoutSetByInit()).toBe('swimlanes');
+  it('defaultLayout (e.g. swimlane) wins over the site-config layout when no user override is set', () => {
+    createFlowDiagram({ defaultLayout: 'swimlane' }).init?.({ layout: 'dagre' } as never);
+    expect(layoutSetByInit()).toBe('swimlane');
   });
 
   it('falls back to the site-config layout when there is no user override and no defaultLayout', () => {

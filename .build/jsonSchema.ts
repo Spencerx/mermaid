@@ -8,7 +8,7 @@ import type { MermaidConfig, BaseDiagramConfig } from '../packages/mermaid/src/c
  */
 const MERMAID_CONFIG_DIAGRAM_KEYS = [
   'flowchart',
-  'swimlanes',
+  'swimlane',
   'sequence',
   'gantt',
   'journey',

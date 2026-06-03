@@ -475,9 +475,9 @@ This is useful when you want to control how to handle syntax errors in your appl
 
 ---
 
-### swimlanes?
+### swimlane?
 
-> `optional` **swimlanes**: `SwimlanesDiagramConfig`
+> `optional` **swimlane**: `SwimlaneDiagramConfig`
 
 Defined in: [packages/mermaid/src/config.type.ts:226](https://github.com/mermaid-js/mermaid/blob/master/packages/mermaid/src/config.type.ts#L226)
 

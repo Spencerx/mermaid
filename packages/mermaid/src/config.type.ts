@@ -223,7 +223,7 @@ export interface MermaidConfig {
    */
   deterministicIDSeed?: string;
   flowchart?: FlowchartDiagramConfig;
-  swimlanes?: SwimlanesDiagramConfig;
+  swimlane?: SwimlaneDiagramConfig;
   sequence?: SequenceDiagramConfig;
   gantt?: GanttDiagramConfig;
   journey?: JourneyDiagramConfig;
@@ -382,9 +382,9 @@ export interface BaseDiagramConfig {
  *
  *
  * This interface was referenced by `MermaidConfig`'s JSON-Schema
- * via the `definition` "SwimlanesDiagramConfig".
+ * via the `definition` "SwimlaneDiagramConfig".
  */
-export interface SwimlanesDiagramConfig extends BaseDiagramConfig {
+export interface SwimlaneDiagramConfig extends BaseDiagramConfig {
   /**
    * Renders edge crossings as small arcs ("hops") or visible gaps so that
    * overlapping edges are easier to read. Set to `false` to disable. Edges

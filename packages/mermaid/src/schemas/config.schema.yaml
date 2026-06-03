@@ -298,8 +298,8 @@ properties:
     type: string
   flowchart:
     $ref: '#/$defs/FlowchartDiagramConfig'
-  swimlanes:
-    $ref: '#/$defs/SwimlanesDiagramConfig'
+  swimlane:
+    $ref: '#/$defs/SwimlaneDiagramConfig'
   sequence:
     $ref: '#/$defs/SequenceDiagramConfig'
   gantt:
@@ -2194,8 +2194,8 @@ $defs: # JSON Schema definition (maybe we should move these to a separate file)
       noteFont: { '$ref': '#/$defs/FontCalculator' }
       actorFont: { '$ref': '#/$defs/FontCalculator' }
 
-  SwimlanesDiagramConfig:
-    title: Swimlanes Diagram Config
+  SwimlaneDiagramConfig:
+    title: Swimlane Diagram Config
     allOf: [{ $ref: '#/$defs/BaseDiagramConfig' }]
     description: |
       The object containing configurations specific for the swimlanes diagram type.

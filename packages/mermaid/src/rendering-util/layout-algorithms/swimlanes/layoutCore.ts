@@ -21,8 +21,8 @@ export function runSwimlaneLayoutCore(data4Layout: LayoutData): SwimlaneDirectio
   const g = toGraphView(data4Layout);
   const nodeGap = data4Layout.config.flowchart?.nodeSpacing ?? 40;
   const layerGap = data4Layout.config.flowchart?.rankSpacing ?? 100;
-  const ignoreCrossLaneEdges = data4Layout.config.swimlanes?.ignoreCrossLaneEdges ?? true;
-  const optimizeRanksByCrossings = data4Layout.config.swimlanes?.optimizeRanksByCrossings ?? true;
+  const ignoreCrossLaneEdges = data4Layout.config.swimlane?.ignoreCrossLaneEdges ?? true;
+  const optimizeRanksByCrossings = data4Layout.config.swimlane?.optimizeRanksByCrossings ?? true;
   const direction = getSwimlaneDirection(data4Layout);
 
   const { ordered, coordinates } = sugiyamaLayout(g, {
@@ -34,6 +34,9 @@ export function runSwimlaneLayoutCore(data4Layout: LayoutData): SwimlaneDirectio
   });
   writeBackToLayoutData(g, ordered, coordinates, { nodeGap, layerGap });
 
+  // The layout phases above position nodes only; they do not emit edge routing.
+  // Reset any edge points carried on the input so routeEdgesOrthogonal below is
+  // the single source of truth for swimlane edge geometry.
   for (const edge of data4Layout.edges ?? []) {
     delete edge.points;
   }

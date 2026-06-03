@@ -18,7 +18,6 @@ import { anchorLabelsToPolyline } from './direction/labelAnchoring.js';
 import { straightenCollinearSiblingDetours } from './direction/siblingSharedFaceRouting.js';
 import { nudgeSharedInteriorSubpaths } from './direction/sharedTrackNudging.js';
 export { validateSwimlanesLayout } from './direction/validation.js';
-export type { ValidationIssue } from './direction/validation.js';
 
 /** Applies direction transforms and post-routing cleanup to a swimlane layout. */
 export function postProcessSwimlaneLayout(layout: LayoutData, direction?: string): void {
@@ -66,6 +65,9 @@ export function postProcessSwimlaneLayout(layout: LayoutData, direction?: string
   for (const n of nodes) {
     nodeByIdMap.set(String(n.id), n);
   }
+  // Initial label anchoring against the routed polylines. The cleanup passes
+  // below (nudging, terminal-lane splits, crossing resolution) can still reshape
+  // these polylines, so labels are re-anchored once more at the end.
   anchorLabelsToPolyline(edges, nodeByIdMap);
 
   clipEdgeEndpointsToNodeBoundaries(edges, nodeByIdMap);
@@ -98,6 +100,8 @@ export function postProcessSwimlaneLayout(layout: LayoutData, direction?: string
   // rendered crossing count.
   resolveRenderedOrthogonalCrossings(edges, nodeByIdMap);
 
+  // Re-anchor labels: the passes above reshaped several polylines after the
+  // initial anchoring, so labels must be snapped to the final geometry.
   anchorLabelsToPolyline(edges, nodeByIdMap);
 
   prepareEdgeEndpointsForRenderer(edges, nodeByIdMap);

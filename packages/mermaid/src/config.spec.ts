@@ -53,8 +53,8 @@ describe('when working with site config', () => {
   it('should default swimlane layering options to true', () => {
     const config = configApi.getConfig();
 
-    expect(config.swimlanes?.ignoreCrossLaneEdges).toBe(true);
-    expect(config.swimlanes?.optimizeRanksByCrossings).toBe(true);
+    expect(config.swimlane?.ignoreCrossLaneEdges).toBe(true);
+    expect(config.swimlane?.optimizeRanksByCrossings).toBe(true);
   });
 
   it('should default ELK node placement alignment to RIGHTDOWN', () => {

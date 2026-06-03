@@ -68,8 +68,8 @@
   ],
   "metadata": {
     "captureVersion": 1,
-    "sourceSha256": "de9208a2a89d835785347f4f8ee09594e007c65d742e89265d8a2c498b773b51",
+    "sourceSha256": "ed3c491640227e605745e34439fa409718885dcf71e4c40d4d9296d3761cf2fd",
     "capturedAt": "2026-05-29T12:24:36.365Z",
-    "capturedFrom": "dev-explorer layout-tests/swimlanes/commant.mmd theme=redux-dark look=neo layout=swimlanes"
+    "capturedFrom": "dev-explorer layout-tests/swimlanes/commant.mmd theme=redux-dark look=neo layout=swimlane"
   }
 }

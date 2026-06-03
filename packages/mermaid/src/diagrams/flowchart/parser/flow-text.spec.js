@@ -310,7 +310,7 @@ describe('[Text] when parsing', () => {
       'graph',
       'flowchart',
       'flowchart-elk',
-      'swimlanes',
+      'swimlane',
       'style',
       'default',
       'linkStyle',

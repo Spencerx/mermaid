@@ -30,6 +30,6 @@
     "captureVersion": 1,
     "sourceSha256": "21f0e7c08d644293dea6b00e697f70bd028d8bac0403cc0823563b7e024d1200",
     "capturedAt": "2026-05-28T10:54:53.713Z",
-    "capturedFrom": "dev-explorer layout-tests/swimlanes/11-commant2.mmd theme=redux-dark look=neo layout=swimlanes"
+    "capturedFrom": "dev-explorer layout-tests/swimlanes/11-commant2.mmd theme=redux-dark look=neo layout=swimlane"
   }
 }

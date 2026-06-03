@@ -6,7 +6,7 @@ export function applySwimlaneLineJumps(
   data4Layout: LayoutData,
   { measure }: CommonLayoutPaintContext
 ): void {
-  const lineHopsConfig = data4Layout.config?.swimlanes?.lineHops;
+  const lineHopsConfig = data4Layout.config?.swimlane?.lineHops;
   if (lineHopsConfig === false) {
     return;
   }

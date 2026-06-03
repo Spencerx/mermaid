@@ -39,8 +39,8 @@ const asStandaloneSwimlanes = (source: string): string => {
   // Every swimlanes layout-test fixture declares the standalone `swimlanes`
   // diagram type directly, so it is rendered as-is. This guard keeps that
   // invariant — a fixture authored as flowchart/graph would fail here.
-  expect(source, 'fixture should declare the standalone swimlanes diagram type').to.match(
-    /^\s*swimlanes\s/m
+  expect(source, 'fixture should declare the standalone swimlane diagram type').to.match(
+    /^\s*swimlane\s/m
   );
   return source;
 };
@@ -88,7 +88,7 @@ const renderSwimlanes = (
 };
 
 const assertStandaloneSwimlanesRendered = (): void => {
-  cy.get('svg').should('have.attr', 'aria-roledescription', 'swimlanes');
+  cy.get('svg').should('have.attr', 'aria-roledescription', 'swimlane');
   cy.get('svg .error-icon').should('not.exist');
   cy.get('g.cluster.swimlane').its('length').should('be.greaterThan', 0);
   // Nodes are `g.node` in the classic look and `g.rough-node` in handdrawn/rough.
@@ -126,7 +126,7 @@ describe('Swimlanes diagram', () => {
 
   it('defaults to the swimlanes layout without an explicit layout config', () => {
     renderSwimlanes(
-      `swimlanes LR
+      `swimlane LR
         subgraph Intake
           A[Request]
         end
@@ -144,7 +144,7 @@ describe('Swimlanes diagram', () => {
 
   it('applies custom theme variables', () => {
     renderSwimlanes(
-      `swimlanes LR
+      `swimlane LR
         subgraph ThemeLane
           A[Themed node]
           B[Next node]
@@ -176,7 +176,7 @@ describe('Swimlanes diagram', () => {
 
   it('applies flowchart style and linkStyle statements', () => {
     renderSwimlanes(
-      `swimlanes LR
+      `swimlane LR
         subgraph StyledLane
           A[Styled node]
           B[Linked node]
@@ -204,7 +204,7 @@ describe('Swimlanes diagram', () => {
 
   it('applies classDef and class statements', () => {
     renderSwimlanes(
-      `swimlanes LR
+      `swimlane LR
         subgraph ClassLane
           A[Classed node]
           B[Default node]
@@ -227,7 +227,7 @@ describe('Swimlanes diagram', () => {
 
   it('puts nodes without an explicit subgraph into a default swimlane', () => {
     renderSwimlanes(
-      `swimlanes LR
+      `swimlane LR
         subgraph OwnedLane
           A[Owned node]
         end
