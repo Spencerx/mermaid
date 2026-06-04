@@ -1,8 +1,8 @@
 import { select as d3select } from 'd3';
 import type { Diagram } from '../../Diagram.js';
 import * as configApi from '../../config.js';
-import insertMarkers from '../../dagre-wrapper/markers.js';
 import { log } from '../../logger.js';
+import insertMarkers from '../../rendering-util/rendering-elements/markers.js';
 import { configureSvgSize } from '../../setupGraphViewbox.js';
 import type { BlockDB } from './blockDB.js';
 import { layout } from './layout.js';
