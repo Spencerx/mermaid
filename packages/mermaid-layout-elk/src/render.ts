@@ -106,7 +106,7 @@ const ARROW_MAP: Record<string, [string, string]> = {
   arrow_circle: ['arrow_open', 'arrow_circle'],
   double_arrow_circle: ['arrow_circle', 'arrow_circle'],
 };
-const DEFAULT_NODE_PLACEMENT_ALIGNMENT = 'RIGHTDOWN';
+const DEFAULT_NODE_PLACEMENT_ALIGNMENT = 'NONE';
 
 export function dir2ElkDirection(dir: unknown): 'RIGHT' | 'LEFT' | 'DOWN' | 'UP' {
   switch (dir) {

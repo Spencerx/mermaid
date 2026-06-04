@@ -144,7 +144,7 @@ properties:
           - RIGHTUP
           - RIGHTDOWN
           - BALANCED
-        default: RIGHTDOWN
+        default: NONE
       cycleBreakingStrategy:
         description: |
           This strategy decides how to find cycles in the graph and deciding which edges need adjustment to break loops.

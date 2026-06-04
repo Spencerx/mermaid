@@ -55,9 +55,9 @@ describe('buildSubgraphLayoutOptions', () => {
     expect(opts['nodePlacement.strategy']).toBe('BRANDES_KOEPF');
   });
 
-  it('defaults nodePlacementAlignment to RIGHTDOWN', () => {
+  it('defaults nodePlacementAlignment to NONE', () => {
     const opts = buildSubgraphLayoutOptions({}, { mergeEdges: true }, 'layered');
-    expect(opts['elk.layered.nodePlacement.bk.fixedAlignment']).toBe('RIGHTDOWN');
+    expect(opts['elk.layered.nodePlacement.bk.fixedAlignment']).toBe('NONE');
   });
 
   it('passes through nodePlacementAlignment from config', () => {
@@ -69,7 +69,7 @@ describe('buildSubgraphLayoutOptions', () => {
     const opts = buildSubgraphLayoutOptions({}, undefined, 'layered');
     expect(opts['elk.layered.mergeEdges']).toBeUndefined();
     expect(opts['nodePlacement.strategy']).toBeUndefined();
-    expect(opts['elk.layered.nodePlacement.bk.fixedAlignment']).toBe('RIGHTDOWN');
+    expect(opts['elk.layered.nodePlacement.bk.fixedAlignment']).toBe('NONE');
   });
 });
 
@@ -177,7 +177,7 @@ describe('buildElkGraphFromLayoutData', () => {
 
     expect(state.elkGraph.layoutOptions['elk.direction']).toBe('RIGHT');
     expect(state.elkGraph.layoutOptions['elk.layered.nodePlacement.bk.fixedAlignment']).toBe(
-      'RIGHTDOWN'
+      'NONE'
     );
     expect(state.elkGraph.children).toHaveLength(2);
 

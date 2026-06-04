@@ -57,10 +57,10 @@ describe('when working with site config', () => {
     expect(config.swimlane?.optimizeRanksByCrossings).toBe(true);
   });
 
-  it('should default ELK node placement alignment to RIGHTDOWN', () => {
+  it('should default ELK node placement alignment to NONE', () => {
     const config = configApi.getConfig();
 
-    expect(config.elk?.nodePlacementAlignment).toBe('RIGHTDOWN');
+    expect(config.elk?.nodePlacementAlignment).toBe('NONE');
   });
 
   it('should retain railroad directives after sanitization', () => {

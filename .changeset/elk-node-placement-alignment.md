@@ -5,6 +5,6 @@
 
 feat: expose `elk.nodePlacementAlignment` to configure Brandes-Koepf fixed alignment in ELK layout
 
-ELK now defaults Brandes-Koepf fixed alignment to `RIGHTDOWN`, matching Mermaid's intended
-ELK layout positioning. Set `elk.nodePlacementAlignment` to another supported value, including
-`NONE`, to opt into a different ELK alignment strategy.
+ELK defaults Brandes-Koepf fixed alignment to `NONE`, preserving ELK's built-in alignment
+selection. Set `elk.nodePlacementAlignment` to another supported value, such as `BALANCED`
+or `RIGHTDOWN`, to opt into a fixed ELK alignment strategy.
