@@ -248,12 +248,13 @@ export function separateSharedRenderedTerminalLanes(
   };
 
   const laneIsStraightCollinearConnector = (lane: TerminalLane): boolean => {
-    const points = dedupeConsecutivePoints((lane.edge as { points?: PointLite[] }).points ?? []);
+    const edge = lane.edge as { points?: PointLite[]; start?: string; end?: string };
+    const points = dedupeConsecutivePoints(edge.points ?? []);
     if (points.length !== 2) {
       return false;
     }
-    const startId = (lane.edge as { start?: string }).start;
-    const endId = (lane.edge as { end?: string }).end;
+    const startId = edge.start;
+    const endId = edge.end;
     const start = startId ? nodeByIdMap.get(startId) : undefined;
     const end = endId ? nodeByIdMap.get(endId) : undefined;
     if (!start || !end) {
@@ -687,6 +688,8 @@ export function resolveRenderedOrthogonalCrossings(
     // long return edges whose original departure dodged a nearby obstacle but
     // whose later vertical rail still crosses a straight sibling connector.
     const candidates: PointLite[][] = [];
+    // TB swimlane return edges use the horizontal outside channels; top/bottom
+    // target ports would route back through the lane stack instead.
     const targetSides: RectSide[] = ['left', 'right'];
     for (const side of targetSides) {
       const dst = portForRectSide(dstNode, side);
