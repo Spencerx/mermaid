@@ -375,6 +375,51 @@ describe('validateLayout new geometric issues', () => {
     expect(getIssueTypes(layout)).toContain('edge-intersects-obstacle');
   });
 
+  it('flags edge-intersects-group-title when an edge crosses a group title section', () => {
+    const lane: Node = {
+      id: 'lane',
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 120,
+      isGroup: true,
+      groupTitleRect: { left: -100, right: 100, top: -60, bottom: -30 },
+    } as any;
+    const e = mkEdge('e', undefined, undefined, [
+      { x: -120, y: -45 },
+      { x: 120, y: -45 },
+    ]);
+    const layout: LayoutData = { nodes: [lane], edges: [e], config: {} as any };
+
+    const res = validateLayout(layout);
+    expect(res.ok).toBe(false);
+    const issue = res.issues.find((i) => i.type === 'edge-intersects-group-title');
+    expect(issue).toBeDefined();
+    expect(issue?.nodeIds).toEqual(['lane']);
+  });
+
+  it('does NOT flag edge-intersects-group-title for an endpoint escaping its own group title', () => {
+    const lane: Node = {
+      id: 'lane',
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 120,
+      isGroup: true,
+      groupTitleRect: { left: -100, right: 100, top: -60, bottom: -30 },
+    } as any;
+    const child = { ...mkNode('child', 0, 0), parentId: 'lane' } as Node;
+    const e = mkEdge('e', 'child', undefined, [
+      { x: 0, y: -20 },
+      { x: 0, y: -80 },
+      { x: 120, y: -80 },
+    ]);
+    const layout: LayoutData = { nodes: [lane, child], edges: [e], config: {} as any };
+
+    const types = getIssueTypes(layout);
+    expect(types).not.toContain('edge-intersects-group-title');
+  });
+
   it('flags edge-intersects-obstacle when an edge loops back through its OWN src node interior', () => {
     // User-reported case (real SVG from a swimlane fixture): the D→H edge
     // exits D's right-top at (96.45, 97.5), extends 20u east, drops 20u

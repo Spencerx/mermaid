@@ -131,6 +131,14 @@ describe('materialized render geometry cleanup', () => {
       ['26', { id: '26', x: -166, y: 54, width: 232, height: 66 }],
       ['27', { id: '27', x: 830, y: 54, width: 232, height: 66 }],
       ['28', { id: '28', x: 166, y: 54, width: 232, height: 108 }],
+      [
+        'General_Manager',
+        {
+          id: 'General_Manager',
+          isGroup: true,
+          groupTitleRect: { left: 0, right: 332, top: -36, bottom: 0 },
+        },
+      ],
     ]);
     const edges: any[] = [
       {
@@ -150,8 +158,8 @@ describe('materialized render geometry cleanup', () => {
 
     expect(edges[0].points).toEqual([
       { x: -166, y: 21 },
-      { x: -166, y: -20 },
-      { x: 830, y: -20 },
+      { x: -166, y: -56 },
+      { x: 830, y: -56 },
       { x: 830, y: 21 },
     ]);
   });

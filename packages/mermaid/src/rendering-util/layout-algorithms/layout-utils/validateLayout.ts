@@ -100,6 +100,7 @@ export type LayoutIssueType =
   | 'edge-non-orthogonal'
   | 'edge-intersects-node'
   | 'edge-intersects-obstacle'
+  | 'edge-intersects-group-title'
   | 'edge-port-direction-mismatch'
   | 'edge-same-port-departure'
   | 'edge-shared-attachment-point'
@@ -340,6 +341,32 @@ function rectsOverlap(a: Rect, b: Rect): { overlapX: number; overlapY: number } 
   return { overlapX, overlapY };
 }
 
+function groupTitleRectForNode(node: Node): Rect | null {
+  const raw = node.groupTitleRect;
+  if (!raw) {
+    return null;
+  }
+  const { left, right, top, bottom } = raw;
+  if (
+    !Number.isFinite(left) ||
+    !Number.isFinite(right) ||
+    !Number.isFinite(top) ||
+    !Number.isFinite(bottom) ||
+    right <= left ||
+    bottom <= top
+  ) {
+    return null;
+  }
+  return {
+    cx: (left + right) / 2,
+    cy: (top + bottom) / 2,
+    left,
+    right,
+    top,
+    bottom,
+  };
+}
+
 /**
  * Reconstruct an edge label's rectangle from the POST-FINALIZE overlay
  * representation. `finalizeDummyLabelNodesToOverlayLabels` consumes the
@@ -555,6 +582,7 @@ export function validateLayout(layout: LayoutData): ValidateLayoutResult {
   // Build obstacle rects (leaf nodes + label dummy nodes)
   const obstacleRects = new Map<string, Rect>();
   const groupBorderRects = new Map<string, Rect>();
+  const groupTitleRects = new Map<string, Rect>();
   for (const n of nodes) {
     if (n?.id == null) {
       continue;
@@ -562,7 +590,12 @@ export function validateLayout(layout: LayoutData): ValidateLayoutResult {
     if (isObstacle(n)) {
       obstacleRects.set(String(n.id), rectForNode(n));
     } else if (n.isGroup) {
-      groupBorderRects.set(String(n.id), rectForNode(n));
+      const groupId = String(n.id);
+      groupBorderRects.set(groupId, rectForNode(n));
+      const groupTitleRect = groupTitleRectForNode(n);
+      if (groupTitleRect) {
+        groupTitleRects.set(groupId, groupTitleRect);
+      }
     }
   }
   const borderHugRects = new Map<string, Rect>([...obstacleRects, ...groupBorderRects]);
@@ -704,6 +737,8 @@ export function validateLayout(layout: LayoutData): ValidateLayoutResult {
     const edgeId = e?.id != null ? String(e.id) : '';
     const startId = e.start != null ? String(e.start) : '';
     const endId = e.end != null ? String(e.end) : '';
+    const sNode = byId.get(startId);
+    const tNode = byId.get(endId);
 
     if (
       !Array.isArray((e as { points?: Point[] }).points) ||
@@ -751,7 +786,6 @@ export function validateLayout(layout: LayoutData): ValidateLayoutResult {
         });
       }
 
-      const tNode = byId.get(endId);
       if (tNode && normalized.segments.length >= 2 && lastLen >= EPS_FINAL_APPROACH) {
         const endSide = sideFromBoundaryPoint(points[points.length - 1], rectForNode(tNode));
         const endBand = endSide
@@ -832,10 +866,45 @@ export function validateLayout(layout: LayoutData): ValidateLayoutResult {
       }
     }
 
-    // Check edge-corner-connection for start and end nodes
-    const sNode = byId.get(startId);
-    const tNode = byId.get(endId);
+    let hitGroupTitle = false;
+    for (const [groupId, titleRect] of groupTitleRects) {
+      for (let i = 0; i < points.length - 1; i++) {
+        const a = points[i];
+        const b = points[i + 1];
+        const isNearStart =
+          withinAttachCorridor(a, startAttach) && withinAttachCorridor(b, startAttach);
+        const isNearEnd = withinAttachCorridor(a, endAttach) && withinAttachCorridor(b, endAttach);
+        if (isNearStart || isNearEnd) {
+          continue;
+        }
+        const touchesStartAttach =
+          distance(a, startAttach) <= EPS || distance(b, startAttach) <= EPS;
+        const touchesEndAttach = distance(a, endAttach) <= EPS || distance(b, endAttach) <= EPS;
+        const terminalOwnGroupEscape =
+          (touchesStartAttach && sNode && isAncestorGroup(groupId, sNode, byId)) ||
+          (touchesEndAttach && tNode && isAncestorGroup(groupId, tNode, byId));
+        if (terminalOwnGroupEscape) {
+          continue;
+        }
 
+        if (segmentIntersectsRectInterior(a, b, titleRect)) {
+          issues.push({
+            type: 'edge-intersects-group-title',
+            message: `Edge "${edgeId}" intersects title section of group "${groupId}"`,
+            edgeId,
+            nodeIds: [groupId],
+            details: { segmentIndex: i, a, b, titleRect },
+          });
+          hitGroupTitle = true;
+          break;
+        }
+      }
+      if (hitGroupTitle) {
+        break;
+      }
+    }
+
+    // Check edge-corner-connection for start and end nodes
     if (sNode && points.length >= 1) {
       const r = rectForNode(sNode);
       if (minDistanceToCorners(points[0], r) <= EPS_CORNER) {

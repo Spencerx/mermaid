@@ -20,7 +20,7 @@ import {
   segmentHitsAnyRect,
   simplifyPolyline,
 } from './geometry.js';
-import type { OrthogonalSegment, Point, RectBounds, RectSide } from './geometry.js';
+import type { OrthogonalSegment, Point, RectBounds, RectEntry, RectSide } from './geometry.js';
 
 const EPS_LOCAL = 1e-3;
 const MIN_SHARED = 8;
@@ -479,6 +479,33 @@ export function liftObstacleHuggingSameSideRails(
   const { realNodeRects, labelNodeRects: labelRects } = collectNodeRectEntries(
     nodeByIdMap.values()
   );
+  const groupTitleRects: RectEntry[] = [];
+  for (const node of nodeByIdMap.values()) {
+    if (!(node as { isGroup?: boolean }).isGroup) {
+      continue;
+    }
+    const rect = (node as { groupTitleRect?: Partial<RectBounds> }).groupTitleRect;
+    if (
+      !rect ||
+      typeof rect.left !== 'number' ||
+      typeof rect.right !== 'number' ||
+      typeof rect.top !== 'number' ||
+      typeof rect.bottom !== 'number' ||
+      !Number.isFinite(rect.left) ||
+      !Number.isFinite(rect.right) ||
+      !Number.isFinite(rect.top) ||
+      !Number.isFinite(rect.bottom) ||
+      rect.right <= rect.left ||
+      rect.bottom <= rect.top
+    ) {
+      continue;
+    }
+    groupTitleRects.push({
+      id: String((node as { id?: string }).id ?? ''),
+      rect: { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom },
+    });
+  }
+  const railBlockerRects = [...realNodeRects, ...groupTitleRects];
   const visibleEdges = edges.filter((edge) => !(edge as { isLayoutOnly?: boolean }).isLayoutOnly);
 
   const pointsFor = (edge: any, replacementEdge?: any, replacement?: PointLite[]): PointLite[] =>
@@ -544,7 +571,7 @@ export function liftObstacleHuggingSameSideRails(
     const endpointIds = [(edge as { start?: string }).start, (edge as { end?: string }).end].filter(
       (id): id is string => Boolean(id)
     );
-    return realNodeRects.filter((entry) => {
+    return railBlockerRects.filter((entry) => {
       if (endpointIds.includes(entry.id)) {
         return false;
       }

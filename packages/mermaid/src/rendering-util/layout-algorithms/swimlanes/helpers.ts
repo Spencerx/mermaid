@@ -49,6 +49,42 @@ export interface WriteBackOptions {
   nodeGap?: number;
 }
 
+function assignTopLaneTitleRect(lane: Node): void {
+  const { x, y, width, height } = lane;
+  const contentTop = (lane as { swimlaneContentTop?: unknown }).swimlaneContentTop;
+  if (
+    typeof x !== 'number' ||
+    typeof y !== 'number' ||
+    typeof width !== 'number' ||
+    typeof height !== 'number' ||
+    typeof contentTop !== 'number' ||
+    !Number.isFinite(x) ||
+    !Number.isFinite(y) ||
+    !Number.isFinite(width) ||
+    !Number.isFinite(height) ||
+    !Number.isFinite(contentTop) ||
+    width <= 0 ||
+    height <= 0
+  ) {
+    delete lane.groupTitleRect;
+    return;
+  }
+
+  const top = y - height / 2;
+  const bottom = Math.min(contentTop, y + height / 2);
+  if (bottom <= top) {
+    delete lane.groupTitleRect;
+    return;
+  }
+
+  lane.groupTitleRect = {
+    left: x - width / 2,
+    right: x + width / 2,
+    top,
+    bottom,
+  };
+}
+
 export function prepareLayoutForSwimlanes(layout: LayoutData): void {
   const direction = (layout as any).direction;
   const nodes = (layout.nodes ??= []);
@@ -298,6 +334,7 @@ export function writeBackToLayoutData(
           if (w != null) {
             lane.width = w;
           }
+          assignTopLaneTitleRect(lane);
         }
       }
     }
