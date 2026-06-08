@@ -84,6 +84,31 @@ describe('direction endpoint clipping', () => {
     ]);
   });
 
+  it('is idempotent when renderer endpoints are already duplicated', () => {
+    const nodeById = new Map<string, any>([
+      ['A', { id: 'A', x: 0, y: 0, width: 10, height: 10 }],
+      ['B', { id: 'B', x: 20, y: 0, width: 10, height: 10 }],
+    ]);
+    const edges: any[] = [
+      {
+        id: 'A_B',
+        start: 'A',
+        end: 'B',
+        points: [
+          { x: -5, y: 0 },
+          { x: 10, y: 0 },
+          { x: 15, y: 0 },
+        ],
+      },
+    ];
+
+    prepareEdgeEndpointsForRenderer(edges, nodeById);
+    const once = edges[0].points.map((point: any) => ({ ...point }));
+    prepareEdgeEndpointsForRenderer(edges, nodeById);
+
+    expect(edges[0].points).toEqual(once);
+  });
+
   it('keeps straight renderer edges two-point while clearing corner ports', () => {
     const nodeById = new Map<string, any>([
       ['A', { id: 'A', x: 0, y: 0, width: 20, height: 20 }],

@@ -105,4 +105,12 @@ export function postProcessSwimlaneLayout(layout: LayoutData, direction?: string
   anchorLabelsToPolyline(edges, nodeByIdMap);
 
   prepareEdgeEndpointsForRenderer(edges, nodeByIdMap);
+
+  // Renderer endpoint preparation materializes the visible endpoint geometry.
+  // Run the shared-track pass once more on that visible shape, then refresh
+  // labels and endpoint handoff. `prepareEdgeEndpointsForRenderer` is
+  // idempotent, so unchanged edges do not accumulate duplicate endpoints.
+  nudgeSharedInteriorSubpaths(edges, nodeByIdMap);
+  anchorLabelsToPolyline(edges, nodeByIdMap);
+  prepareEdgeEndpointsForRenderer(edges, nodeByIdMap);
 }

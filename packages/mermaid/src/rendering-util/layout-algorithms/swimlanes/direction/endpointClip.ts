@@ -1,4 +1,5 @@
 import {
+  dedupeConsecutivePoints,
   orthogonalizePolyline,
   pointInsideRect,
   rectOfNodeBounds,
@@ -414,7 +415,8 @@ export function prepareEdgeEndpointsForRenderer(edges: unknown[], nodeByIdMap: M
       continue;
     }
 
-    const newPts = snapAndCollapseEndpoints(context.points, context.srcRect, context.dstRect);
+    const input = dedupeConsecutivePoints(context.points, EPS);
+    const newPts = snapAndCollapseEndpoints(input, context.srcRect, context.dstRect);
     if (newPts.length < 3) {
       context.edge.points = newPts;
       continue;
