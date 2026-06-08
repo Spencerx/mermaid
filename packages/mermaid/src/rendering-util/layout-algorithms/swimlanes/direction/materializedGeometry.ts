@@ -749,10 +749,9 @@ export function liftTopLaneTitleBandsAboveRails(edges: any[], nodeByIdMap: Map<s
     ) {
       return undefined;
     }
-    const laneTop = y - height / 2;
     const titleWidth = rect.right - rect.left;
     const titleHeight = rect.bottom - rect.top;
-    if (titleHeight <= 0 || titleWidth < titleHeight || Math.abs(rect.top - laneTop) > 1) {
+    if (titleHeight <= 0 || titleWidth < titleHeight) {
       return undefined;
     }
     return { node, rect };
@@ -870,10 +869,9 @@ export function shiftLeftLaneTitleBandsLeftOfRails(
     ) {
       return undefined;
     }
-    const laneLeft = x - width / 2;
     const titleWidth = rect.right - rect.left;
     const titleHeight = rect.bottom - rect.top;
-    if (titleWidth <= 0 || titleHeight < titleWidth || Math.abs(rect.left - laneLeft) > 1) {
+    if (titleWidth <= 0 || titleHeight < titleWidth) {
       return undefined;
     }
     return { node, rect };
@@ -1785,7 +1783,9 @@ export function resolveRenderedOrthogonalCrossings(
   nodeByIdMap: Map<string, any>
 ): void {
   const ANCHOR = 20;
+  const EXTRA_CHANNEL_COUNT = 2;
   const MAX_ITERATIONS = 4;
+  const MAX_PAIR_CANDIDATES_PER_EDGE = 48;
 
   interface NodeInfo {
     id: string;
@@ -1821,6 +1821,7 @@ export function resolveRenderedOrthogonalCrossings(
   }
 
   const nodeInfoById = new Map(realNodes.map((node) => [node.id, node]));
+  const realNodeRects = realNodes.map((node) => ({ id: node.id, rect: node.rect }));
   const sides: RectSide[] = ['top', 'bottom', 'left', 'right'];
   const outsideTracks = {
     top: Math.min(...realNodes.map((node) => node.rect.top)) - ANCHOR,
@@ -1831,6 +1832,23 @@ export function resolveRenderedOrthogonalCrossings(
 
   const visibleEdges = edges.filter((edge) => !(edge as { isLayoutOnly?: boolean }).isLayoutOnly);
 
+  const outwardTracksForSide = (side: RectSide): number[] => {
+    const outward = side === 'left' || side === 'top' ? -1 : 1;
+    const tracks: number[] = [];
+    for (let channel = 0; channel <= EXTRA_CHANNEL_COUNT; channel++) {
+      tracks.push(outsideTracks[side] + outward * ANCHOR * channel);
+    }
+    return tracks;
+  };
+
+  const replacementPointsFor = (
+    edge: any,
+    replacements: Map<any, PointLite[]> = new Map()
+  ): PointLite[] =>
+    dedupeConsecutivePoints(
+      replacements.get(edge) ?? (edge as { points?: PointLite[] }).points ?? []
+    );
+
   const pointsFor = (edge: any, replacementEdge?: any, replacement?: PointLite[]): PointLite[] =>
     dedupeConsecutivePoints(
       edge === replacementEdge
@@ -1838,14 +1856,14 @@ export function resolveRenderedOrthogonalCrossings(
         : ((edge as { points?: PointLite[] }).points ?? [])
     );
 
-  const crossingCount = (replacementEdge?: any, replacement?: PointLite[]): number => {
+  const crossingCount = (replacements: Map<any, PointLite[]> = new Map()): number => {
     let count = 0;
     for (let i = 0; i < visibleEdges.length; i++) {
       const first = visibleEdges[i];
-      const firstSegments = segmentsFor(pointsFor(first, replacementEdge, replacement));
+      const firstSegments = segmentsFor(replacementPointsFor(first, replacements));
       for (let j = i + 1; j < visibleEdges.length; j++) {
         const second = visibleEdges[j];
-        const secondSegments = segmentsFor(pointsFor(second, replacementEdge, replacement));
+        const secondSegments = segmentsFor(replacementPointsFor(second, replacements));
         for (const firstSegment of firstSegments) {
           for (const secondSegment of secondSegments) {
             if (
@@ -1866,14 +1884,39 @@ export function resolveRenderedOrthogonalCrossings(
     return count;
   };
 
-  const pathHasSegmentConflict = (edge: any, path: PointLite[]): boolean => {
+  const crossingCountWithSingleReplacement = (edge: any, replacement: PointLite[]): number =>
+    crossingCount(new Map<any, PointLite[]>([[edge, replacement]]));
+
+  const pathLength = (points: PointLite[]): number =>
+    points.slice(1).reduce((sum, point, index) => {
+      const previous = points[index];
+      return sum + Math.abs(point.x - previous.x) + Math.abs(point.y - previous.y);
+    }, 0);
+
+  const totalBends = (replacements: Map<any, PointLite[]> = new Map()): number =>
+    visibleEdges.reduce(
+      (sum, edge) => sum + countOrthogonalBends(replacementPointsFor(edge, replacements)),
+      0
+    );
+
+  const totalLength = (replacements: Map<any, PointLite[]> = new Map()): number =>
+    visibleEdges.reduce(
+      (sum, edge) => sum + pathLength(replacementPointsFor(edge, replacements)),
+      0
+    );
+
+  const pathHasSegmentConflict = (
+    edge: any,
+    path: PointLite[],
+    replacements: Map<any, PointLite[]> = new Map()
+  ): boolean => {
     const pathSegments = segmentsFor(path);
     for (const other of visibleEdges) {
       if (other === edge) {
         continue;
       }
       for (const candidateSegment of pathSegments) {
-        for (const otherSegment of segmentsFor(pointsFor(other))) {
+        for (const otherSegment of segmentsFor(replacementPointsFor(other, replacements))) {
           if (sameAxisSegmentOverlapLength(candidateSegment, otherSegment, 0.5) >= MIN_SHARED) {
             return true;
           }
@@ -1883,22 +1926,13 @@ export function resolveRenderedOrthogonalCrossings(
     return false;
   };
 
-  const segmentHitsRectInterior = (segment: SegmentLite, rect: RectLite): boolean => {
-    const minX = Math.min(segment.a.x, segment.b.x);
-    const maxX = Math.max(segment.a.x, segment.b.x);
-    const minY = Math.min(segment.a.y, segment.b.y);
-    const maxY = Math.max(segment.a.y, segment.b.y);
-    return (
-      maxX > rect.left + 1 && minX < rect.right - 1 && maxY > rect.top + 1 && minY < rect.bottom - 1
+  const pathHitsNode = (edge: any, path: PointLite[]): boolean => {
+    const endpointIds = [(edge as { start?: string }).start, (edge as { end?: string }).end].filter(
+      (id): id is string => Boolean(id)
     );
-  };
-
-  const pathHitsNode = (path: PointLite[]): boolean => {
     for (const segment of segmentsFor(path)) {
-      for (const node of realNodes) {
-        if (segmentHitsRectInterior(segment, node.rect)) {
-          return true;
-        }
+      if (segmentHitsAnyRect(segment.a, segment.b, realNodeRects, endpointIds, -2)) {
+        return true;
       }
     }
     return false;
@@ -1911,22 +1945,95 @@ export function resolveRenderedOrthogonalCrossings(
     dstSide: RectSide
   ): PointLite[][] => {
     const candidates: PointLite[][] = [];
+    const pushCandidate = (points: PointLite[]): void => {
+      const candidate = simplifyPolyline(dedupeConsecutivePoints(points));
+      if (segmentsFor(candidate).length === candidate.length - 1) {
+        candidates.push(candidate);
+      }
+    };
+
     const base = buildOrthogonalPortPath(src, srcSide, dst, dstSide, ANCHOR, EPS_LOCAL);
     if (base) {
-      candidates.push(base);
+      pushCandidate(base);
     }
 
     if (srcSide === dstSide) {
-      if (srcSide === 'left' || srcSide === 'right') {
-        const localX =
-          srcSide === 'left' ? Math.min(src.x, dst.x) - ANCHOR : Math.max(src.x, dst.x) + ANCHOR;
-        candidates.push(buildSameSideTrackPath(src, srcSide, dst, localX));
-        candidates.push(buildSameSideTrackPath(src, srcSide, dst, outsideTracks[srcSide]));
-      } else {
-        const localY =
-          srcSide === 'top' ? Math.min(src.y, dst.y) - ANCHOR : Math.max(src.y, dst.y) + ANCHOR;
-        candidates.push(buildSameSideTrackPath(src, srcSide, dst, localY));
-        candidates.push(buildSameSideTrackPath(src, srcSide, dst, outsideTracks[srcSide]));
+      const outward = srcSide === 'left' || srcSide === 'top' ? -1 : 1;
+      const localTrack =
+        srcSide === 'left'
+          ? Math.min(src.x, dst.x) - ANCHOR
+          : srcSide === 'right'
+            ? Math.max(src.x, dst.x) + ANCHOR
+            : srcSide === 'top'
+              ? Math.min(src.y, dst.y) - ANCHOR
+              : Math.max(src.y, dst.y) + ANCHOR;
+      const trackSeeds = [localTrack, outsideTracks[srcSide]];
+      for (const seed of trackSeeds) {
+        for (let channel = 0; channel <= EXTRA_CHANNEL_COUNT; channel++) {
+          pushCandidate(
+            buildSameSideTrackPath(src, srcSide, dst, seed + outward * ANCHOR * channel)
+          );
+        }
+      }
+    }
+
+    const srcHorizontal = srcSide === 'left' || srcSide === 'right';
+    const dstHorizontal = dstSide === 'left' || dstSide === 'right';
+    if (srcHorizontal && !dstHorizontal) {
+      for (const xTrack of outwardTracksForSide(srcSide)) {
+        for (const yTrack of outwardTracksForSide(dstSide)) {
+          pushCandidate([
+            src,
+            { x: xTrack, y: src.y },
+            { x: xTrack, y: yTrack },
+            { x: dst.x, y: yTrack },
+            dst,
+          ]);
+        }
+      }
+    } else if (!srcHorizontal && dstHorizontal) {
+      for (const yTrack of outwardTracksForSide(srcSide)) {
+        for (const xTrack of outwardTracksForSide(dstSide)) {
+          pushCandidate([
+            src,
+            { x: src.x, y: yTrack },
+            { x: xTrack, y: yTrack },
+            { x: xTrack, y: dst.y },
+            dst,
+          ]);
+        }
+      }
+    } else if (srcHorizontal && dstHorizontal) {
+      const yTracks = [...outwardTracksForSide('top'), ...outwardTracksForSide('bottom')];
+      for (const srcTrack of outwardTracksForSide(srcSide)) {
+        for (const dstTrack of outwardTracksForSide(dstSide)) {
+          for (const yTrack of yTracks) {
+            pushCandidate([
+              src,
+              { x: srcTrack, y: src.y },
+              { x: srcTrack, y: yTrack },
+              { x: dstTrack, y: yTrack },
+              { x: dstTrack, y: dst.y },
+              dst,
+            ]);
+          }
+        }
+      }
+    } else {
+      const xTracks = [...outwardTracksForSide('left'), ...outwardTracksForSide('right')];
+      for (const srcTrack of outwardTracksForSide(srcSide)) {
+        for (const dstTrack of outwardTracksForSide(dstSide)) {
+          for (const xTrack of xTracks) {
+            pushCandidate([
+              src,
+              { x: src.x, y: srcTrack },
+              { x: xTrack, y: srcTrack },
+              { x: xTrack, y: dstTrack },
+              { x: dst.x, y: dstTrack },
+              dst,
+            ]);
+          }
+        }
       }
     }
 
@@ -1964,26 +2071,75 @@ export function resolveRenderedOrthogonalCrossings(
       return [];
     }
 
+    const candidates: PointLite[][] = [];
+
+    const pushCandidate = (points: PointLite[]): void => {
+      const candidate = simplifyPolyline(dedupeConsecutivePoints(points));
+      if (segmentsFor(candidate).length === candidate.length - 1) {
+        candidates.push(candidate);
+      }
+    };
+
     // Track-swapping adaptation: keep the already-safe source departure
     // segment, then move the long middle run into an outer lane. This covers
     // long return edges whose original departure dodged a nearby obstacle but
-    // whose later vertical rail still crosses a straight sibling connector.
-    const candidates: PointLite[][] = [];
-    // TB swimlane return edges use the horizontal outside channels; top/bottom
-    // target ports would route back through the lane stack instead.
-    const targetSides: RectSide[] = ['left', 'right'];
-    for (const side of targetSides) {
-      const dst = portForRectSide(dstNode, side);
-      const track = side === 'left' ? outsideTracks.left : outsideTracks.right;
-      candidates.push(
-        dedupeConsecutivePoints([
-          first,
-          departure,
-          { x: track, y: departure.y },
-          { x: track, y: dst.y },
-          dst,
-        ])
-      );
+    // whose later terminal rail still crosses a sibling connector. The escape
+    // axis follows the preserved departure: vertical departures use left/right
+    // outside channels; horizontal departures use top/bottom outside channels.
+    if (isVerticalSegment(first, departure, EPS_LOCAL)) {
+      const externalXTracks = [...outwardTracksForSide('left'), ...outwardTracksForSide('right')];
+      const externalYTracks = [...outwardTracksForSide('top'), ...outwardTracksForSide('bottom')];
+      for (const side of sides) {
+        const dst = portForRectSide(dstNode, side);
+        const targetYTracks =
+          side === 'top' || side === 'bottom' ? outwardTracksForSide(side) : externalYTracks;
+        for (const track of externalXTracks) {
+          pushCandidate([
+            first,
+            departure,
+            { x: track, y: departure.y },
+            { x: track, y: dst.y },
+            dst,
+          ]);
+          for (const targetTrack of targetYTracks) {
+            pushCandidate([
+              first,
+              departure,
+              { x: track, y: departure.y },
+              { x: track, y: targetTrack },
+              { x: dst.x, y: targetTrack },
+              dst,
+            ]);
+          }
+        }
+      }
+    } else if (isHorizontalSegment(first, departure, EPS_LOCAL)) {
+      const externalXTracks = [...outwardTracksForSide('left'), ...outwardTracksForSide('right')];
+      const externalYTracks = [...outwardTracksForSide('top'), ...outwardTracksForSide('bottom')];
+      for (const side of sides) {
+        const dst = portForRectSide(dstNode, side);
+        const targetXTracks =
+          side === 'left' || side === 'right' ? outwardTracksForSide(side) : externalXTracks;
+        for (const track of externalYTracks) {
+          pushCandidate([
+            first,
+            departure,
+            { x: departure.x, y: track },
+            { x: dst.x, y: track },
+            dst,
+          ]);
+          for (const targetTrack of targetXTracks) {
+            pushCandidate([
+              first,
+              departure,
+              { x: departure.x, y: track },
+              { x: targetTrack, y: track },
+              { x: targetTrack, y: dst.y },
+              dst,
+            ]);
+          }
+        }
+      }
     }
 
     return candidates;
@@ -2011,6 +2167,96 @@ export function resolveRenderedOrthogonalCrossings(
     return candidates;
   };
 
+  const candidateIsSafe = (
+    edge: any,
+    path: PointLite[],
+    replacements: Map<any, PointLite[]>
+  ): boolean => !pathHitsNode(edge, path) && !pathHasSegmentConflict(edge, path, replacements);
+
+  const pairCandidatesFor = (edge: any, currentCrossings: number): PointLite[] => {
+    const seen = new Set<string>();
+    const candidates = candidatePathsFor(edge)
+      .map((candidate) => simplifyPolyline(dedupeConsecutivePoints(candidate)))
+      .filter((candidate) => {
+        if (pathHitsNode(edge, candidate)) {
+          return false;
+        }
+        const key = candidate
+          .map((point) => `${point.x.toFixed(3)},${point.y.toFixed(3)}`)
+          .join('|');
+        if (seen.has(key) || candidate.length < 2) {
+          return false;
+        }
+        seen.add(key);
+        return true;
+      })
+      .map((candidate) => ({
+        candidate,
+        crossings: crossingCountWithSingleReplacement(edge, candidate),
+        bends: countOrthogonalBends(candidate, EPS_LOCAL),
+        length: pathLength(candidate),
+      }))
+      .filter(({ crossings }) => crossings <= currentCrossings)
+      .sort((a, b) => a.crossings - b.crossings || a.bends - b.bends || a.length - b.length);
+    return candidates.slice(0, MAX_PAIR_CANDIDATES_PER_EDGE).map(({ candidate }) => candidate);
+  };
+
+  const bestPairedReplacement = (currentCrossings: number): Map<any, PointLite[]> | undefined => {
+    const currentBends = totalBends();
+    const currentLength = totalLength();
+    const options = visibleEdges
+      .map((edge) => ({ edge, candidates: pairCandidatesFor(edge, currentCrossings) }))
+      .filter(({ candidates }) => candidates.length > 0);
+
+    let bestReplacements: Map<any, PointLite[]> | undefined;
+    let bestCrossings = currentCrossings;
+    let bestBends = currentBends;
+    let bestLength = currentLength;
+
+    for (let i = 0; i < options.length; i++) {
+      const first = options[i];
+      for (let j = i + 1; j < options.length; j++) {
+        const second = options[j];
+        for (const firstCandidate of first.candidates) {
+          for (const secondCandidate of second.candidates) {
+            const replacements = new Map<any, PointLite[]>([
+              [first.edge, firstCandidate],
+              [second.edge, secondCandidate],
+            ]);
+            if (
+              !candidateIsSafe(first.edge, firstCandidate, replacements) ||
+              !candidateIsSafe(second.edge, secondCandidate, replacements)
+            ) {
+              continue;
+            }
+
+            const candidateCrossings = crossingCount(replacements);
+            if (candidateCrossings >= currentCrossings) {
+              continue;
+            }
+            const candidateBends = totalBends(replacements);
+            const candidateLength = totalLength(replacements);
+            if (
+              candidateCrossings > bestCrossings ||
+              (candidateCrossings === bestCrossings &&
+                (candidateBends > bestBends ||
+                  (candidateBends === bestBends && candidateLength >= bestLength)))
+            ) {
+              continue;
+            }
+
+            bestReplacements = replacements;
+            bestCrossings = candidateCrossings;
+            bestBends = candidateBends;
+            bestLength = candidateLength;
+          }
+        }
+      }
+    }
+
+    return bestReplacements;
+  };
+
   for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
     const currentCrossings = crossingCount();
     if (currentCrossings === 0) {
@@ -2025,11 +2271,14 @@ export function resolveRenderedOrthogonalCrossings(
     for (const edge of visibleEdges) {
       const currentEdgeBends = countOrthogonalBends(pointsFor(edge), EPS_LOCAL);
       for (const candidate of candidatePathsFor(edge)) {
-        if (pathHitsNode(candidate) || pathHasSegmentConflict(edge, candidate)) {
+        const candidateHitsNode = pathHitsNode(edge, candidate);
+        const candidateHasSegmentConflict =
+          !candidateHitsNode && pathHasSegmentConflict(edge, candidate);
+        const candidateCrossings = crossingCountWithSingleReplacement(edge, candidate);
+        const candidateBends = countOrthogonalBends(candidate, EPS_LOCAL);
+        if (candidateHitsNode || candidateHasSegmentConflict) {
           continue;
         }
-        const candidateCrossings = crossingCount(edge, candidate);
-        const candidateBends = countOrthogonalBends(candidate, EPS_LOCAL);
         const improvesCurrentEdge =
           candidateCrossings < currentCrossings ||
           (candidateCrossings === currentCrossings && candidateBends < currentEdgeBends);
@@ -2049,10 +2298,17 @@ export function resolveRenderedOrthogonalCrossings(
       }
     }
 
-    if (!bestEdge || !bestPath) {
-      return;
+    if (bestEdge && bestPath) {
+      bestEdge.points = bestPath;
+      continue;
     }
 
-    bestEdge.points = bestPath;
+    const pairedReplacement = bestPairedReplacement(currentCrossings);
+    if (!pairedReplacement) {
+      return;
+    }
+    for (const [edge, points] of pairedReplacement) {
+      (edge as { points: PointLite[] }).points = points;
+    }
   }
 }

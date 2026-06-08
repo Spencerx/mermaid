@@ -143,4 +143,10 @@ export function postProcessSwimlaneLayout(layout: LayoutData, direction?: string
   // that still crosses the title section.
   liftTopLaneTitleBandsAboveRails(edges, nodeByIdMap);
   shiftLeftLaneTitleBandsLeftOfRails(edges, nodeByIdMap);
+  // Moving one aligned title band can expose a second title/rail interaction
+  // after the group bounds settle. The passes are idempotent, so one bounded
+  // repeat keeps headers out of late crossing-cleanup routes without rerouting
+  // the edges again.
+  liftTopLaneTitleBandsAboveRails(edges, nodeByIdMap);
+  shiftLeftLaneTitleBandsLeftOfRails(edges, nodeByIdMap);
 }

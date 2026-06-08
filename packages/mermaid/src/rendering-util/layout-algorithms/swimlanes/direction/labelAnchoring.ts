@@ -151,7 +151,7 @@ export function anchorLabelsToPolyline(edges: Edge[], nodeByIdMap: Map<string, N
   // labels a little farther away so the arrowhead remains visually readable.
   const LABEL_ENDPOINT_CLEARANCE = 12;
 
-  const labelOverlapsAnything = (labelId: string, edgeId: string, rect: RectLite): boolean => {
+  const labelOverlapsForeignNode = (labelId: string, rect: RectLite): boolean => {
     const buffered = inflateRect(rect, LABEL_PLACEMENT_BUFFER);
     for (const { nodeId, rect: nr } of foreignNodeRects) {
       if (nodeId === labelId) {
@@ -161,6 +161,11 @@ export function anchorLabelsToPolyline(edges: Edge[], nodeByIdMap: Map<string, N
         return true;
       }
     }
+    return false;
+  };
+
+  const labelOverlapsForeignEdge = (edgeId: string, rect: RectLite): boolean => {
+    const buffered = inflateRect(rect, LABEL_PLACEMENT_BUFFER);
     for (const s of allEdgeSegments) {
       if (s.edgeId === edgeId) {
         continue;
@@ -171,6 +176,9 @@ export function anchorLabelsToPolyline(edges: Edge[], nodeByIdMap: Map<string, N
     }
     return false;
   };
+
+  const labelOverlapsAnything = (labelId: string, edgeId: string, rect: RectLite): boolean =>
+    labelOverlapsForeignNode(labelId, rect) || labelOverlapsForeignEdge(edgeId, rect);
 
   const placedLabelRects: { labelId: string; rect: RectLite }[] = [];
 
@@ -405,7 +413,8 @@ export function anchorLabelsToPolyline(edges: Edge[], nodeByIdMap: Map<string, N
 
     const findLaneContainingFallback = (
       pool: SegmentCandidate[],
-      requireEndpointClearance: boolean
+      requireEndpointClearance: boolean,
+      allowForeignEdgeOverlap = false
     ): { laneId: string; anchor: { midX: number; midY: number } } | undefined => {
       const rankedPool = rankSegments(pool);
       for (const seg of rankedPool) {
@@ -418,7 +427,8 @@ export function anchorLabelsToPolyline(edges: Edge[], nodeByIdMap: Map<string, N
           placement &&
           !labelOverlapsOwnMarker(placement.rect, pts) &&
           !overlapsPlacedLabel(labelId, placement.rect) &&
-          !labelOverlapsAnything(labelId, edge.id, placement.rect)
+          !labelOverlapsForeignNode(labelId, placement.rect) &&
+          (allowForeignEdgeOverlap || !labelOverlapsForeignEdge(edge.id, placement.rect))
         ) {
           return { laneId: placement.laneId, anchor: placement.anchor };
         }
@@ -430,7 +440,8 @@ export function anchorLabelsToPolyline(edges: Edge[], nodeByIdMap: Map<string, N
       tryPool(poolBase) ??
       (poolBase.length < segments.length ? tryPool(segments) : undefined) ??
       findLaneContainingFallback(segments, true) ??
-      findLaneContainingFallback(segments, false);
+      findLaneContainingFallback(segments, false) ??
+      findLaneContainingFallback(segments, false, true);
 
     if (chosen) {
       labelNode.x = chosen.anchor.midX;
