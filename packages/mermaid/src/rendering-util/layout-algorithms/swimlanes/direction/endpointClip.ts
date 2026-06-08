@@ -11,6 +11,7 @@ import type { Point, RectBounds } from './geometry.js';
 
 const EPS = 1e-3;
 const INSIDE_EPS = 0.5;
+const CORNER_CLEARANCE = 4;
 
 type NodeRect = RectBounds;
 
@@ -94,7 +95,8 @@ export function clipEdgeEndpointsToNodeBoundaries(edges: unknown[], nodeByIdMap:
     if (context.dstRect) {
       next = clipEndpoint(next, context.dstRect, false);
     }
-
+    next = simplifyPolyline(orthogonalizePolyline(next));
+    next = clearStraightEndpointCornerConnections(next, context.srcRect, context.dstRect);
     context.edge.points = simplifyPolyline(orthogonalizePolyline(next));
   }
 }
@@ -138,7 +140,11 @@ function snapEndpointToBoundary(
   return endpoint;
 }
 
-function firstDistinctAdjacent(points: Point[], endpointIndex: number, step: 1 | -1): Point {
+function firstDistinctAdjacent(
+  points: Point[],
+  endpointIndex: number,
+  step: 1 | -1
+): Point | undefined {
   const endpoint = points[endpointIndex];
   for (let index = endpointIndex + step; index >= 0 && index < points.length; index += step) {
     const candidate = points[index];
@@ -147,6 +153,165 @@ function firstDistinctAdjacent(points: Point[], endpointIndex: number, step: 1 |
     }
   }
   return points[endpointIndex + step];
+}
+
+function cornerClearanceRange(min: number, max: number): { lo: number; hi: number } {
+  const lo = min + CORNER_CLEARANCE;
+  const hi = max - CORNER_CLEARANCE;
+  return lo <= hi ? { lo, hi } : { lo: (min + max) / 2, hi: (min + max) / 2 };
+}
+
+function clampToCornerClearance(value: number, min: number, max: number): number {
+  const { lo, hi } = cornerClearanceRange(min, max);
+  return Math.min(hi, Math.max(lo, value));
+}
+
+function intersectRanges(
+  ranges: { lo: number; hi: number }[]
+): { lo: number; hi: number } | undefined {
+  const lo = Math.max(...ranges.map((range) => range.lo));
+  const hi = Math.min(...ranges.map((range) => range.hi));
+  if (lo > hi) {
+    return undefined;
+  }
+  return { lo, hi };
+}
+
+function clearanceRangeForSide(r: NodeRect, side: BorderSide): { lo: number; hi: number } {
+  return side === 'left' || side === 'right'
+    ? cornerClearanceRange(r.top, r.bottom)
+    : cornerClearanceRange(r.left, r.right);
+}
+
+function terminalSideForSegment(
+  endpoint: Point,
+  adjacent: Point,
+  r: NodeRect
+): BorderSide | undefined {
+  const yWithin = endpoint.y >= r.top - EPS && endpoint.y <= r.bottom + EPS;
+  const xWithin = endpoint.x >= r.left - EPS && endpoint.x <= r.right + EPS;
+  if (sameY(endpoint, adjacent, EPS) && yWithin) {
+    if (Math.abs(endpoint.x - r.left) < EPS) {
+      return 'left';
+    }
+    if (Math.abs(endpoint.x - r.right) < EPS) {
+      return 'right';
+    }
+  }
+  if (sameX(endpoint, adjacent, EPS) && xWithin) {
+    if (Math.abs(endpoint.y - r.top) < EPS) {
+      return 'top';
+    }
+    if (Math.abs(endpoint.y - r.bottom) < EPS) {
+      return 'bottom';
+    }
+  }
+  return undefined;
+}
+
+function clearStraightEndpointCornerConnections(
+  points: Point[],
+  srcRect?: NodeRect,
+  dstRect?: NodeRect
+): Point[] {
+  if (points.length !== 2) {
+    return points;
+  }
+
+  const [start, end] = points;
+  if (sameY(start, end, EPS)) {
+    const ranges: { lo: number; hi: number }[] = [];
+    const srcSide = srcRect ? terminalSideForSegment(start, end, srcRect) : undefined;
+    const dstSide = dstRect ? terminalSideForSegment(end, start, dstRect) : undefined;
+    if (srcRect && srcSide && (srcSide === 'left' || srcSide === 'right')) {
+      ranges.push(clearanceRangeForSide(srcRect, srcSide));
+    }
+    if (dstRect && dstSide && (dstSide === 'left' || dstSide === 'right')) {
+      ranges.push(clearanceRangeForSide(dstRect, dstSide));
+    }
+    const range = ranges.length > 0 ? intersectRanges(ranges) : undefined;
+    if (!range) {
+      return points;
+    }
+    const y = Math.min(range.hi, Math.max(range.lo, start.y));
+    if (Math.abs(y - start.y) < EPS) {
+      return points;
+    }
+    return [
+      { x: start.x, y },
+      { x: end.x, y },
+    ];
+  }
+
+  if (sameX(start, end, EPS)) {
+    const ranges: { lo: number; hi: number }[] = [];
+    const srcSide = srcRect ? terminalSideForSegment(start, end, srcRect) : undefined;
+    const dstSide = dstRect ? terminalSideForSegment(end, start, dstRect) : undefined;
+    if (srcRect && srcSide && (srcSide === 'top' || srcSide === 'bottom')) {
+      ranges.push(clearanceRangeForSide(srcRect, srcSide));
+    }
+    if (dstRect && dstSide && (dstSide === 'top' || dstSide === 'bottom')) {
+      ranges.push(clearanceRangeForSide(dstRect, dstSide));
+    }
+    const range = ranges.length > 0 ? intersectRanges(ranges) : undefined;
+    if (!range) {
+      return points;
+    }
+    const x = Math.min(range.hi, Math.max(range.lo, start.x));
+    if (Math.abs(x - start.x) < EPS) {
+      return points;
+    }
+    return [
+      { x, y: start.y },
+      { x, y: end.y },
+    ];
+  }
+
+  return points;
+}
+
+function clearEndpointCornerConnection(points: Point[], r: NodeRect, atStart: boolean): Point[] {
+  if (points.length < 2) {
+    return points;
+  }
+
+  const endpointIndex = atStart ? 0 : points.length - 1;
+  const step = atStart ? 1 : -1;
+  const endpoint = points[endpointIndex];
+  const adjacent = firstDistinctAdjacent(points, endpointIndex, step);
+  if (!adjacent) {
+    return points;
+  }
+
+  const side = terminalSideForSegment(endpoint, adjacent, r);
+  if (!side) {
+    return points;
+  }
+
+  const horizontalTerminal = side === 'left' || side === 'right';
+  const adjusted = horizontalTerminal
+    ? { x: endpoint.x, y: clampToCornerClearance(endpoint.y, r.top, r.bottom) }
+    : { x: clampToCornerClearance(endpoint.x, r.left, r.right), y: endpoint.y };
+  if (samePoint(endpoint, adjusted, EPS)) {
+    return points;
+  }
+
+  const next = points.map((point) => ({ ...point }));
+  for (let index = endpointIndex; index >= 0 && index < points.length; index += step) {
+    const point = points[index];
+    if (horizontalTerminal) {
+      if (!sameY(point, endpoint, EPS)) {
+        break;
+      }
+      next[index].y = adjusted.y;
+    } else {
+      if (!sameX(point, endpoint, EPS)) {
+        break;
+      }
+      next[index].x = adjusted.x;
+    }
+  }
+  return next;
 }
 
 function borderSideForSegment(a: Point, b: Point, r: NodeRect): BorderSide | undefined {
@@ -207,36 +372,53 @@ function snapAndCollapseEndpoints(
 ): Point[] {
   let next = points;
   if (srcRect) {
-    const snapped = snapEndpointToBoundary(firstDistinctAdjacent(next, 0, 1), next[0], srcRect);
-    if (snapped !== next[0]) {
-      next = [snapped, ...next.slice(1)];
+    const adjacent = firstDistinctAdjacent(next, 0, 1);
+    if (adjacent) {
+      const snapped = snapEndpointToBoundary(adjacent, next[0], srcRect);
+      if (snapped !== next[0]) {
+        next = [snapped, ...next.slice(1)];
+      }
     }
     next = collapseOwnBorderStub(next, srcRect, true);
   }
   if (dstRect) {
     const last = next.length - 1;
-    const snapped = snapEndpointToBoundary(
-      firstDistinctAdjacent(next, last, -1),
-      next[last],
-      dstRect,
-      true
-    );
-    if (snapped !== next[last]) {
-      next = [...next.slice(0, last), snapped];
+    const adjacent = firstDistinctAdjacent(next, last, -1);
+    if (adjacent) {
+      const snapped = snapEndpointToBoundary(adjacent, next[last], dstRect, true);
+      if (snapped !== next[last]) {
+        next = [...next.slice(0, last), snapped];
+      }
     }
     next = collapseOwnBorderStub(next, dstRect, false);
+  }
+
+  const straightCleared = clearStraightEndpointCornerConnections(next, srcRect, dstRect);
+  if (straightCleared !== next || next.length === 2) {
+    return straightCleared;
+  }
+
+  if (srcRect) {
+    next = clearEndpointCornerConnection(next, srcRect, true);
+  }
+  if (dstRect) {
+    next = clearEndpointCornerConnection(next, dstRect, false);
   }
   return next;
 }
 
 export function prepareEdgeEndpointsForRenderer(edges: unknown[], nodeByIdMap: Map<string, any>) {
   for (const edge of edges) {
-    const context = endpointContextFor(edge, nodeByIdMap, 3);
+    const context = endpointContextFor(edge, nodeByIdMap, 2);
     if (!context) {
       continue;
     }
 
     const newPts = snapAndCollapseEndpoints(context.points, context.srcRect, context.dstRect);
+    if (newPts.length < 3) {
+      context.edge.points = newPts;
+      continue;
+    }
     const duplicated = [
       newPts[0],
       { ...newPts[0] },

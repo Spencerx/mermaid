@@ -11,6 +11,72 @@ import {
 import type { RectBounds } from './geometry.js';
 
 const EPS = 1e-3;
+const MARKER_CLEARANCE_LENGTH = 10;
+const MARKER_CLEARANCE_HALF_WIDTH = 7;
+
+function markerClearanceRectFor(
+  pts: { x: number; y: number }[],
+  atStart: boolean
+): RectBounds | undefined {
+  const terminalIndex = atStart ? 0 : pts.length - 1;
+  const step = atStart ? 1 : -1;
+  const tip = pts[terminalIndex];
+  const inner = pts[terminalIndex + step];
+  if (!tip || !inner) {
+    return undefined;
+  }
+
+  const dx = inner.x - tip.x;
+  const dy = inner.y - tip.y;
+  const len = Math.abs(dx) + Math.abs(dy);
+  if (len < EPS) {
+    return undefined;
+  }
+
+  if (Math.abs(dy) <= EPS) {
+    const x2 = tip.x + Math.sign(dx) * MARKER_CLEARANCE_LENGTH;
+    return {
+      left: Math.min(tip.x, x2),
+      right: Math.max(tip.x, x2),
+      top: tip.y - MARKER_CLEARANCE_HALF_WIDTH,
+      bottom: tip.y + MARKER_CLEARANCE_HALF_WIDTH,
+    };
+  }
+
+  if (Math.abs(dx) <= EPS) {
+    const y2 = tip.y + Math.sign(dy) * MARKER_CLEARANCE_LENGTH;
+    return {
+      left: tip.x - MARKER_CLEARANCE_HALF_WIDTH,
+      right: tip.x + MARKER_CLEARANCE_HALF_WIDTH,
+      top: Math.min(tip.y, y2),
+      bottom: Math.max(tip.y, y2),
+    };
+  }
+
+  return {
+    left: Math.min(tip.x, inner.x),
+    right: Math.max(tip.x, inner.x),
+    top: Math.min(tip.y, inner.y),
+    bottom: Math.max(tip.y, inner.y),
+  };
+}
+
+function normalizeRect(rect: RectBounds): RectBounds {
+  return {
+    left: Math.min(rect.left, rect.right),
+    right: Math.max(rect.left, rect.right),
+    top: Math.min(rect.top, rect.bottom),
+    bottom: Math.max(rect.top, rect.bottom),
+  };
+}
+
+function labelOverlapsOwnMarker(rect: RectBounds, pts: { x: number; y: number }[]): boolean {
+  const startMarker = markerClearanceRectFor(pts, true);
+  const endMarker = markerClearanceRectFor(pts, false);
+  return [startMarker, endMarker].some(
+    (marker) => marker && rectsOverlap(rect, normalizeRect(marker))
+  );
+}
 
 export function anchorLabelsToPolyline(edges: Edge[], nodeByIdMap: Map<string, Node>): void {
   // Build a set of foreign polylines once for overlap checks. Labelled
@@ -190,15 +256,15 @@ export function anchorLabelsToPolyline(edges: Edge[], nodeByIdMap: Map<string, N
     // matching label long axis preferred, (c) longest tie-break.
     const rankSegments = (pool: SegmentCandidate[]): SegmentCandidate[] => {
       return [...pool].sort((a, b) => {
-        const aFits = a.length >= (a.orientation === 'horizontal' ? lw : lh) + 2;
-        const bFits = b.length >= (b.orientation === 'horizontal' ? lw : lh) + 2;
-        if (aFits !== bFits) {
-          return aFits ? -1 : 1;
-        }
         const aLongAxis = a.orientation === labelLongAxis;
         const bLongAxis = b.orientation === labelLongAxis;
         if (aLongAxis !== bLongAxis) {
           return aLongAxis ? -1 : 1;
+        }
+        const aFits = a.length >= (a.orientation === 'horizontal' ? lw : lh) + 2;
+        const bFits = b.length >= (b.orientation === 'horizontal' ? lw : lh) + 2;
+        if (aFits !== bFits) {
+          return aFits ? -1 : 1;
         }
         return b.length - a.length;
       });
@@ -219,7 +285,7 @@ export function anchorLabelsToPolyline(edges: Edge[], nodeByIdMap: Map<string, N
     // consistent with the paper (Mermaid adaptation). Paper-adjacent to
     // Wybrow-Marriott alley-midpoint centering (src `e8804c93`), which
     // picks the placement with widest clearance to foreign geometry.
-    const ALONG_SEGMENT_TS = [0.5, 0.25, 0.75, 0.15, 0.85];
+    const ALONG_SEGMENT_TS = [0.5, 0.25, 0.75, 0.05, 0.95, 0.15, 0.85];
     const anchorAtT = (seg: SegmentCandidate, t: number): { midX: number; midY: number } => {
       const a = pts[seg.idx];
       const b = pts[seg.idx + 1];
@@ -240,6 +306,9 @@ export function anchorLabelsToPolyline(edges: Edge[], nodeByIdMap: Map<string, N
           if (!laneId) {
             continue;
           }
+          if (labelOverlapsOwnMarker(rect, pts)) {
+            continue;
+          }
           if (overlapsPlacedLabel(labelId, rect)) {
             continue;
           }
@@ -258,7 +327,12 @@ export function anchorLabelsToPolyline(edges: Edge[], nodeByIdMap: Map<string, N
       for (const seg of rankedPool) {
         const rect = rectFromCenterSize(seg.midX, seg.midY, lw, lh);
         const laneId = findContainingLane(rect);
-        if (laneId && !overlapsPlacedLabel(labelId, rect)) {
+        if (
+          laneId &&
+          !labelOverlapsOwnMarker(rect, pts) &&
+          !overlapsPlacedLabel(labelId, rect) &&
+          !labelOverlapsAnything(labelId, edge.id, rect)
+        ) {
           return { laneId, anchor: { midX: seg.midX, midY: seg.midY } };
         }
       }
