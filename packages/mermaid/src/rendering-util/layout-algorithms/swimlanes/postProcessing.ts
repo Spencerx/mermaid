@@ -10,8 +10,10 @@ import { portSwapToLShape } from './direction/portSwap.js';
 import { collapseShortTerminalStub } from './direction/terminalStub.js';
 import {
   collapseRedundantRectangularDoglegs,
+  liftObstacleHuggingSameSideRails,
   resolveRenderedOrthogonalCrossings,
   separateSharedRenderedTerminalLanes,
+  swapDestinationTerminalTailsToReduceCrossings,
 } from './direction/materializedGeometry.js';
 import { simplifyDetouredEdges } from './direction/detourSimplification.js';
 import { anchorLabelsToPolyline } from './direction/labelAnchoring.js';
@@ -93,6 +95,15 @@ export function postProcessSwimlaneLayout(layout: LayoutData, direction?: string
   // safety checks preserve obstacle clearance and the newly split lanes.
   collapseRedundantRectangularDoglegs(edges, nodeByIdMap);
 
+  // Same-side rails can be routed just inside a taller intervening node's
+  // border. Lift those rails outside the blocker before crossing cleanup.
+  liftObstacleHuggingSameSideRails(edges, nodeByIdMap);
+
+  // Some shared-destination crossings only improve when two terminal ports
+  // exchange places together. Try that bounded transaction before falling back
+  // to whole-edge reroutes.
+  swapDestinationTerminalTailsToReduceCrossings(edges, nodeByIdMap);
+
   const finalizeRenderedEdges = (): void => {
     resolveRenderedOrthogonalCrossings(edges, nodeByIdMap);
     anchorLabelsToPolyline(edges, nodeByIdMap);
@@ -106,9 +117,15 @@ export function postProcessSwimlaneLayout(layout: LayoutData, direction?: string
   // rendered crossing count or shorten an equally crossing route.
   finalizeRenderedEdges();
 
+  // Renderer endpoint preparation materializes the visible endpoint geometry.
+  // Run the shared-track pass once more on that visible shape, then refresh
+  // labels and endpoint handoff. `prepareEdgeEndpointsForRenderer` is
+  // idempotent, so unchanged edges do not accumulate duplicate endpoints.
+  nudgeSharedInteriorSubpaths(edges, nodeByIdMap);
+
   // Endpoint preparation materializes the renderer-facing terminal stubs. In
   // long return-edge cases those stubs can reveal a crossing that was not
-  // present in the pre-materialized route, so run the bounded track-swap
-  // cleanup once more and then re-prepare the endpoints it reshaped.
+  // present in the pre-materialized route, so run the bounded cleanup once
+  // more and then re-prepare the endpoints it reshaped.
   finalizeRenderedEdges();
 }
