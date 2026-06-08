@@ -4,6 +4,7 @@ import {
   liftObstacleHuggingSameSideRails,
   liftTopLaneTitleBandsAboveRails,
   separateSharedRenderedTerminalLanes,
+  shiftLeftLaneTitleBandsLeftOfRails,
   swapDestinationTerminalTailsToReduceCrossings,
 } from '../direction/materializedGeometry.js';
 import {
@@ -203,6 +204,71 @@ describe('materialized render geometry cleanup', () => {
       y: 49.5,
       height: 189,
       groupTitleRect: { left: -332, right: 664, top: -45, bottom: -24 },
+    });
+  });
+
+  it('shifts LR lane title bands left of a clear left-side rail', () => {
+    const nodeById = new Map<string, any>([
+      [
+        'BOD',
+        {
+          id: 'BOD',
+          isGroup: true,
+          direction: 'LR',
+          x: 0,
+          y: 100,
+          width: 200,
+          height: 200,
+          groupTitleRect: { left: -100, right: -64, top: 0, bottom: 200 },
+        },
+      ],
+      [
+        'Finance_Head',
+        {
+          id: 'Finance_Head',
+          isGroup: true,
+          direction: 'LR',
+          x: 0,
+          y: 300,
+          width: 200,
+          height: 200,
+          groupTitleRect: { left: -100, right: -64, top: 200, bottom: 400 },
+        },
+      ],
+    ]);
+    const edges: any[] = [
+      {
+        id: 'L_27_28_0',
+        start: '27',
+        end: '28',
+        points: [
+          { x: -80, y: 350 },
+          { x: -80, y: 300 },
+          { x: -90, y: 300 },
+          { x: -90, y: 50 },
+          { x: -80, y: 50 },
+        ],
+      },
+    ];
+
+    shiftLeftLaneTitleBandsLeftOfRails(edges, nodeById);
+
+    expect(edges[0].points).toEqual([
+      { x: -80, y: 350 },
+      { x: -80, y: 300 },
+      { x: -90, y: 300 },
+      { x: -90, y: 50 },
+      { x: -80, y: 50 },
+    ]);
+    expect(nodeById.get('BOD')).toMatchObject({
+      x: -15,
+      width: 230,
+      groupTitleRect: { left: -130, right: -94, top: 0, bottom: 200 },
+    });
+    expect(nodeById.get('Finance_Head')).toMatchObject({
+      x: -15,
+      width: 230,
+      groupTitleRect: { left: -130, right: -94, top: 200, bottom: 400 },
     });
   });
 

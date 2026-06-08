@@ -14,6 +14,7 @@ import {
   liftTopLaneTitleBandsAboveRails,
   resolveRenderedOrthogonalCrossings,
   separateSharedRenderedTerminalLanes,
+  shiftLeftLaneTitleBandsLeftOfRails,
   swapDestinationTerminalTailsToReduceCrossings,
 } from './direction/materializedGeometry.js';
 import { simplifyDetouredEdges } from './direction/detourSimplification.js';
@@ -100,11 +101,6 @@ export function postProcessSwimlaneLayout(layout: LayoutData, direction?: string
   // border. Lift those rails outside the blocker before crossing cleanup.
   liftObstacleHuggingSameSideRails(edges, nodeByIdMap);
 
-  // Swimlane title bands are visual headers, not routing obstacles. If an
-  // already-safe top rail crosses the title section, raise the aligned title
-  // bands above that rail instead of lengthening the edge route.
-  liftTopLaneTitleBandsAboveRails(edges, nodeByIdMap);
-
   // Some shared-destination crossings only improve when two terminal ports
   // exchange places together. Try that bounded transaction before falling back
   // to whole-edge reroutes.
@@ -134,4 +130,10 @@ export function postProcessSwimlaneLayout(layout: LayoutData, direction?: string
   // present in the pre-materialized route, so run the bounded cleanup once
   // more and then re-prepare the endpoints it reshaped.
   finalizeRenderedEdges();
+
+  // Swimlane title bands are visual headers, not routing obstacles. After all
+  // edge geometry is final, move the aligned title bands out of any clear rail
+  // that still crosses the title section.
+  liftTopLaneTitleBandsAboveRails(edges, nodeByIdMap);
+  shiftLeftLaneTitleBandsLeftOfRails(edges, nodeByIdMap);
 }

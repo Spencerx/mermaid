@@ -818,6 +818,140 @@ export function liftTopLaneTitleBandsAboveRails(edges: any[], nodeByIdMap: Map<s
   }
 }
 
+export function shiftLeftLaneTitleBandsLeftOfRails(
+  edges: any[],
+  nodeByIdMap: Map<string, any>
+): void {
+  const CLEARANCE = 4;
+
+  interface LaneTitle {
+    node: any;
+    rect: RectLite;
+  }
+
+  const validTitleRect = (node: any): RectLite | undefined => {
+    const rect = (node as { groupTitleRect?: Partial<RectBounds> }).groupTitleRect;
+    if (
+      !rect ||
+      typeof rect.left !== 'number' ||
+      typeof rect.right !== 'number' ||
+      typeof rect.top !== 'number' ||
+      typeof rect.bottom !== 'number' ||
+      !Number.isFinite(rect.left) ||
+      !Number.isFinite(rect.right) ||
+      !Number.isFinite(rect.top) ||
+      !Number.isFinite(rect.bottom) ||
+      rect.right <= rect.left ||
+      rect.bottom <= rect.top
+    ) {
+      return undefined;
+    }
+    return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
+  };
+
+  const leftLaneTitleFor = (node: any): LaneTitle | undefined => {
+    if (!(node as { isGroup?: boolean }).isGroup || (node as { parentId?: unknown }).parentId) {
+      return undefined;
+    }
+    const rawDirection = (node as { direction?: unknown }).direction;
+    if (rawDirection !== 'LR') {
+      return undefined;
+    }
+    const rect = validTitleRect(node);
+    const x = (node as { x?: number }).x;
+    const width = (node as { width?: number }).width;
+    if (
+      !rect ||
+      typeof x !== 'number' ||
+      typeof width !== 'number' ||
+      !Number.isFinite(x) ||
+      !Number.isFinite(width) ||
+      width <= 0
+    ) {
+      return undefined;
+    }
+    const laneLeft = x - width / 2;
+    const titleWidth = rect.right - rect.left;
+    const titleHeight = rect.bottom - rect.top;
+    if (titleWidth <= 0 || titleHeight < titleWidth || Math.abs(rect.left - laneLeft) > 1) {
+      return undefined;
+    }
+    return { node, rect };
+  };
+
+  const verticalSegmentIntersectsTitle = (segment: SegmentLite, rect: RectLite): boolean => {
+    if (!segment.vertical) {
+      return false;
+    }
+    const x = segment.a.x;
+    if (x <= rect.left + EPS_LOCAL || x >= rect.right - EPS_LOCAL) {
+      return false;
+    }
+    return overlapLength(segment.a.y, segment.b.y, rect.top, rect.bottom) >= MIN_SHARED;
+  };
+
+  const horizontalSegmentIntersectsTitle = (segment: SegmentLite, rect: RectLite): boolean => {
+    if (!segment.horizontal) {
+      return false;
+    }
+    const y = segment.a.y;
+    if (y <= rect.top + EPS_LOCAL || y >= rect.bottom - EPS_LOCAL) {
+      return false;
+    }
+    return overlapLength(segment.a.x, segment.b.x, rect.left, rect.right) >= MIN_SHARED;
+  };
+
+  const lanes = [...nodeByIdMap.values()]
+    .map(leftLaneTitleFor)
+    .filter((lane): lane is LaneTitle => Boolean(lane));
+  if (lanes.length === 0) {
+    return;
+  }
+
+  let leftDelta = 0;
+  for (const edge of edges) {
+    if ((edge as { isLayoutOnly?: boolean }).isLayoutOnly) {
+      continue;
+    }
+    const points = dedupeConsecutivePoints((edge as { points?: PointLite[] }).points ?? []);
+    for (const segment of segmentsFor(points)) {
+      for (const lane of lanes) {
+        if (verticalSegmentIntersectsTitle(segment, lane.rect)) {
+          leftDelta = Math.max(leftDelta, lane.rect.right - segment.a.x + CLEARANCE);
+        } else if (horizontalSegmentIntersectsTitle(segment, lane.rect)) {
+          const segmentLeft = Math.min(segment.a.x, segment.b.x);
+          leftDelta = Math.max(leftDelta, lane.rect.right - segmentLeft + CLEARANCE);
+        }
+      }
+    }
+  }
+
+  if (leftDelta <= EPS_LOCAL) {
+    return;
+  }
+
+  for (const lane of lanes) {
+    const x = (lane.node as { x?: number }).x;
+    const width = (lane.node as { width?: number }).width;
+    if (
+      typeof x !== 'number' ||
+      typeof width !== 'number' ||
+      !Number.isFinite(x) ||
+      !Number.isFinite(width) ||
+      width <= 0
+    ) {
+      continue;
+    }
+    lane.node.x = x - leftDelta / 2;
+    lane.node.width = width + leftDelta;
+    lane.node.groupTitleRect = {
+      ...lane.rect,
+      left: lane.rect.left - leftDelta,
+      right: lane.rect.right - leftDelta,
+    };
+  }
+}
+
 export function swapDestinationTerminalTailsToReduceCrossings(
   edges: any[],
   nodeByIdMap: Map<string, any>
