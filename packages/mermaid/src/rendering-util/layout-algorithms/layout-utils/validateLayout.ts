@@ -25,6 +25,8 @@ const EPS_PORT = 2;
 const EPS_BORDER = 2;
 /** Minimum overlap length to count as shared subpath */
 const L_MIN_SHARED = 8;
+/** Minimum perpendicular gap between long parallel edge sections. */
+const EPS_PARALLEL_EDGE_GAP = 7;
 /** Minimum near-border length to count as border hugging */
 const L_MIN_BORDER = 12;
 /** Exemption corridor near endpoints for certain checks */
@@ -105,6 +107,7 @@ export type LayoutIssueType =
   | 'edge-bend-near-endpoint'
   | 'edge-corner-connection'
   | 'edge-shared-subpath'
+  | 'edge-parallel-segment-too-close'
   | 'edge-border-hugging'
   | 'node-border-hugging'
   | 'edge-label-off-edge'
@@ -236,6 +239,24 @@ function collinearOverlap(s1: Segment, s2: Segment): number {
     }
     return rangeOverlap(s1.a.y, s1.b.y, s2.a.y, s2.b.y);
   }
+}
+
+/** Projected overlap for same-orientation parallel segments, regardless of gap. */
+function parallelProjectedOverlap(s1: Segment, s2: Segment): number {
+  if (s1.orientation !== s2.orientation || s1.orientation === 'Z') {
+    return 0;
+  }
+  return s1.orientation === 'H'
+    ? rangeOverlap(s1.a.x, s1.b.x, s2.a.x, s2.b.x)
+    : rangeOverlap(s1.a.y, s1.b.y, s2.a.y, s2.b.y);
+}
+
+/** Perpendicular distance between same-orientation parallel segments. */
+function parallelSegmentGap(s1: Segment, s2: Segment): number | null {
+  if (s1.orientation !== s2.orientation || s1.orientation === 'Z') {
+    return null;
+  }
+  return s1.orientation === 'H' ? Math.abs(s1.a.y - s2.a.y) : Math.abs(s1.a.x - s2.a.x);
 }
 
 /** Check if a segment runs near a rect border for a significant length */
@@ -1231,9 +1252,34 @@ export function validateLayout(layout: LayoutData): ValidateLayoutResult {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 4) Shared subpath check (pairwise edges)
+  // 4) Shared / crowded parallel subpath checks (pairwise edges)
   // ─────────────────────────────────────────────────────────────────────────────
   const sortedEdges = [...edgeMetas].sort((a, b) => a.id.localeCompare(b.id));
+  const segmentTouchesPoint = (seg: Segment, p: Point): boolean =>
+    distance(seg.a, p) <= EPS || distance(seg.b, p) <= EPS;
+  const isTerminalSegmentForNode = (em: EdgeMeta, seg: Segment, nodeId: string): boolean => {
+    if (em.startId === nodeId && segmentTouchesPoint(seg, em.normalized.points[0])) {
+      return true;
+    }
+    return (
+      em.endId === nodeId &&
+      segmentTouchesPoint(seg, em.normalized.points[em.normalized.points.length - 1])
+    );
+  };
+  const closeSectionsAreSharedNodeTerminalStubs = (
+    e1: EdgeMeta,
+    s1: Segment,
+    e2: EdgeMeta,
+    s2: Segment
+  ): boolean => {
+    const sharedNodeIds = [e1.startId, e1.endId].filter(
+      (id) => id.length > 0 && (id === e2.startId || id === e2.endId)
+    );
+    return sharedNodeIds.some(
+      (nodeId) =>
+        isTerminalSegmentForNode(e1, s1, nodeId) && isTerminalSegmentForNode(e2, s2, nodeId)
+    );
+  };
   for (let i = 0; i < sortedEdges.length; i++) {
     for (let j = i + 1; j < sortedEdges.length; j++) {
       const e1 = sortedEdges[i];
@@ -1242,13 +1288,12 @@ export function validateLayout(layout: LayoutData): ValidateLayoutResult {
       for (const s1 of e1.normalized.segments) {
         for (const s2 of e2.normalized.segments) {
           const overlap = collinearOverlap(s1, s2);
+          const e1Start = e1.points[0];
+          const e1End = e1.points[e1.points.length - 1];
+          const e2Start = e2.points[0];
+          const e2End = e2.points[e2.points.length - 1];
           if (overlap >= L_MIN_SHARED) {
             // Check if overlap is within attachment corridors of either edge
-            const e1Start = e1.points[0];
-            const e1End = e1.points[e1.points.length - 1];
-            const e2Start = e2.points[0];
-            const e2End = e2.points[e2.points.length - 1];
-
             const allInCorridor =
               (withinAttachCorridor(s1.a, e1Start) || withinAttachCorridor(s1.a, e1End)) &&
               (withinAttachCorridor(s1.b, e1Start) || withinAttachCorridor(s1.b, e1End)) &&
@@ -1260,6 +1305,36 @@ export function validateLayout(layout: LayoutData): ValidateLayoutResult {
                 type: 'edge-shared-subpath',
                 message: `Edges "${e1.id}" and "${e2.id}" share a subpath of length ${overlap.toFixed(1)}`,
                 details: { edgeIds: [e1.id, e2.id], overlapLength: overlap },
+              });
+            }
+          }
+
+          const projectedOverlap = parallelProjectedOverlap(s1, s2);
+          const gap = parallelSegmentGap(s1, s2);
+          if (
+            projectedOverlap >= L_MIN_SHARED &&
+            gap != null &&
+            gap > EPS &&
+            gap < EPS_PARALLEL_EDGE_GAP
+          ) {
+            const allInCorridor =
+              (withinAttachCorridor(s1.a, e1Start) || withinAttachCorridor(s1.a, e1End)) &&
+              (withinAttachCorridor(s1.b, e1Start) || withinAttachCorridor(s1.b, e1End)) &&
+              (withinAttachCorridor(s2.a, e2Start) || withinAttachCorridor(s2.a, e2End)) &&
+              (withinAttachCorridor(s2.b, e2Start) || withinAttachCorridor(s2.b, e2End));
+
+            if (!allInCorridor && !closeSectionsAreSharedNodeTerminalStubs(e1, s1, e2, s2)) {
+              issues.push({
+                type: 'edge-parallel-segment-too-close',
+                message: `Edges "${e1.id}" and "${e2.id}" have parallel sections ${gap.toFixed(1)}px apart over ${projectedOverlap.toFixed(1)}px`,
+                details: {
+                  edgeIds: [e1.id, e2.id],
+                  gap,
+                  threshold: EPS_PARALLEL_EDGE_GAP,
+                  overlapLength: projectedOverlap,
+                  minOverlap: L_MIN_SHARED,
+                  segments: [s1, s2],
+                },
               });
             }
           }

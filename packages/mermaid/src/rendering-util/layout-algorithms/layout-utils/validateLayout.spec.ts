@@ -484,6 +484,71 @@ describe('validateLayout new geometric issues', () => {
     expect(types).toContain('edge-shared-subpath');
   });
 
+  it('flags edge-parallel-segment-too-close for long nearby parallel sections', () => {
+    // Regression shape from swimlanes/12 before the rail-separation fix:
+    // `I -> exit` and `B -> exit` run vertically only ~1.94px apart over
+    // more than 80px of shared projected span.
+    const iExit = mkEdge('L_I_exit_0', undefined, undefined, [
+      { x: -113.64374732971191, y: 955 },
+      { x: 220.83124923706055, y: 955 },
+      { x: 220.83124923706055, y: 1083.5643920898438 },
+      { x: 240.546875, y: 1083.5643920898438 },
+    ]);
+    const bExit = mkEdge('L_B_exit_0', undefined, undefined, [
+      { x: -131.5906219482422, y: 192 },
+      { x: -131.5906219482422, y: 928 },
+      { x: 222.77187538146973, y: 928 },
+      { x: 222.77187538146973, y: 1038.0643920898438 },
+      { x: 258.328125, y: 1038.0643920898438 },
+      { x: 258.328125, y: 1058.0643920898438 },
+    ]);
+    const layout: LayoutData = { nodes: [], edges: [iExit, bExit], config: {} as any };
+
+    const res = validateLayout(layout);
+    const issue = res.issues.find((i) => i.type === 'edge-parallel-segment-too-close');
+    expect(issue).toBeDefined();
+    expect(issue?.details?.edgeIds).toEqual(['L_B_exit_0', 'L_I_exit_0']);
+    expect(issue?.details?.gap).toBeCloseTo(1.9406261444091797);
+  });
+
+  it('does NOT flag edge-parallel-segment-too-close after the sections are separated', () => {
+    const iExit = mkEdge('L_I_exit_0', undefined, undefined, [
+      { x: -131.5906219482422, y: 996 },
+      { x: -131.5906219482422, y: 1016 },
+      { x: 213.83124923706055, y: 1016 },
+      { x: 213.83124923706055, y: 1083.5643920898438 },
+      { x: 240.546875, y: 1083.5643920898438 },
+    ]);
+    const bExit = mkEdge('L_B_exit_0', undefined, undefined, [
+      { x: -131.5906219482422, y: 192 },
+      { x: -131.5906219482422, y: 928 },
+      { x: 222.77187538146973, y: 928 },
+      { x: 222.77187538146973, y: 1038.0643920898438 },
+      { x: 258.328125, y: 1038.0643920898438 },
+      { x: 258.328125, y: 1058.0643920898438 },
+    ]);
+    const layout: LayoutData = { nodes: [], edges: [iExit, bExit], config: {} as any };
+
+    const types = getIssueTypes(layout);
+    expect(types).not.toContain('edge-parallel-segment-too-close');
+  });
+
+  it('does NOT flag edge-parallel-segment-too-close for terminal stubs on a shared node', () => {
+    const first = mkEdge('first', 'D', 'E', [
+      { x: 0, y: 0 },
+      { x: 0, y: 20 },
+      { x: 80, y: 20 },
+    ]);
+    const second = mkEdge('second', 'D', 'H', [
+      { x: 4, y: 0 },
+      { x: 4, y: 50 },
+    ]);
+    const layout: LayoutData = { nodes: [], edges: [first, second], config: {} as any };
+
+    const types = getIssueTypes(layout);
+    expect(types).not.toContain('edge-parallel-segment-too-close');
+  });
+
   it('flags edge-border-hugging when an edge runs near a node border for a long distance', () => {
     // Node N is at (0, 0) with size 40x40, so rect is {left: -20, right: 20, top: -20, bottom: 20}
     // Edge runs OUTSIDE the node but very close to the top border (y=-20)
