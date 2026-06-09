@@ -32,10 +32,12 @@ const getDefaultSelfLoopSide = (rankdir = 'TB') => {
   }
 };
 
-// Class diagrams also use dagre, but self-referential multiplicity labels rely on
-// the existing segmented self-loop rendering path for terminal label placement.
 const shouldMergeSelfLoopSegments = (diagramType) =>
-  diagramType === 'flowchart' || diagramType === 'flowchart-v2' || diagramType === 'stateDiagram';
+  diagramType === 'flowchart' ||
+  diagramType === 'flowchart-v2' ||
+  diagramType === 'stateDiagram' ||
+  diagramType === 'er' ||
+  diagramType === 'classDiagram';
 
 const DAGRE_NODE_LAYOUT_PROPERTIES = [
   'x',
@@ -460,13 +462,15 @@ export const applyDagreLayoutResult = (data4Layout, measuredLayout) => {
   const nodeById = new Map(data4Layout.nodes.map((node) => [node.id, node]));
 
   sortNodesByHierarchy(graph).forEach((nodeId) => {
-    const targetNode = nodeById.get(nodeId);
-    if (!targetNode) {
+    const dagreNode = normalizeDagreNode(graph, nodeId, subGraphTitleTotalMargin);
+    if (!dagreNode) {
       return;
     }
 
-    const dagreNode = normalizeDagreNode(graph, nodeId, subGraphTitleTotalMargin);
-    if (dagreNode) {
+    applyDagreNodeLayout(graph.node(nodeId), dagreNode);
+
+    const targetNode = nodeById.get(nodeId);
+    if (targetNode) {
       applyDagreNodeLayout(targetNode, dagreNode);
     }
   });
@@ -740,12 +744,10 @@ export const runDagreLayoutCore = (_data4Layout, context) => {
   return measuredLayout;
 };
 
-const getDagrePaintNodes = (data4Layout, { measure }) => {
-  const nodeById = new Map(data4Layout.nodes.map((node) => [node.id, node]));
-  return sortNodesByHierarchy(measure.graph)
-    .map((nodeId) => nodeById.get(nodeId) ?? measure.graph.node(nodeId))
+const getDagrePaintNodes = (_data4Layout, { measure }) =>
+  sortNodesByHierarchy(measure.graph)
+    .map((nodeId) => measure.graph.node(nodeId))
     .filter(Boolean);
-};
 
 const getDagreEdgeNode = (nodeId, _edge, { measure }) =>
   nodeId ? measure.graph.node(nodeId) : undefined;

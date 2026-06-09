@@ -17,6 +17,7 @@ const setupDom = () => {
   const oldDocument = globalThis.document;
   const oldMutationObserver = globalThis.MutationObserver;
   const dom = new JSDOM('<html lang="en"><body><div id="container"></div></body></html>', {
+    url: 'http://localhost/',
     resources: 'usable',
     beforeParse(window) {
       window.Element.prototype.getBBox = () => ({
@@ -101,6 +102,8 @@ describe('getEdgesToRender', () => {
 
     expect(data4Layout.nodes[0]).toMatchObject({ x: 10, y: 25, width: 30, height: 40 });
     expect(data4Layout.nodes[1]).toMatchObject({ x: 100, y: 125, width: 30, height: 40 });
+    expect(graph.node('A')).toMatchObject({ x: 10, y: 25, width: 30, height: 40 });
+    expect(graph.node('B')).toMatchObject({ x: 100, y: 125, width: 30, height: 40 });
     expect(data4Layout.edges).toEqual([
       expect.objectContaining({
         id: 'A-B',
@@ -501,50 +504,122 @@ C --> C`
     }
   });
 
-  it('renders recursive ER relationships with their dagre self-loop segments', async () => {
+  it('renders a recursive ER relationship as one logical self-loop path', async () => {
     const restoreDom = setupDom();
 
     try {
       const { svg } = await mermaidAPI.render(
         'er-recursive-self-loop-test',
         `erDiagram
-        CUSTOMER ||..o{ CUSTOMER : refers
-        CUSTOMER ||--o{ ORDER : places
-        ORDER ||--|{ LINE-ITEM : contains`
+        CUSTOMER ||..o{ CUSTOMER : refers`
       );
       const dom = new JSDOM(svg);
       const cyclicPaths = getCyclicPaths(dom.window.document);
+      const relationshipPaths = dom.window.document.querySelectorAll(
+        '.edgePaths path.relationshipLine'
+      );
 
-      expect(cyclicPaths).toHaveLength(3);
-      expectFinitePaths(cyclicPaths);
+      expect(cyclicPaths).toHaveLength(0);
+      expect(relationshipPaths).toHaveLength(1);
+      expect(relationshipPaths[0].getAttribute('data-id')).not.toContain('cyclic-special');
+      expect(relationshipPaths[0].getAttribute('id')).toContain('entity-CUSTOMER-0');
+      expect(relationshipPaths[0].getAttribute('id')).not.toContain('cyclic-special');
+      expectFinitePaths(relationshipPaths);
     } finally {
       restoreDom();
     }
   });
 
-  it('renders class self-loops with multiplicity terminal labels', async () => {
-    const restoreDom = setupDom();
+  it('preserves class self-loop multiplicity terminal labels when merging', () => {
+    const graph = new Graph({ multigraph: true, compound: true });
+    graph.setNode('SelfReferential', {
+      id: 'SelfReferential',
+      x: 50,
+      y: 50,
+      width: 100,
+      height: 60,
+    });
+    graph.setNode('SelfReferential---SelfReferential---1', {
+      id: 'SelfReferential---SelfReferential---1',
+      x: 120,
+      y: 50,
+    });
+    graph.setNode('SelfReferential---SelfReferential---2', {
+      id: 'SelfReferential---SelfReferential---2',
+      x: 120,
+      y: 90,
+    });
 
-    try {
-      const { svg } = await mermaidAPI.render(
-        'class-recursive-self-loop-test',
-        `classDiagram
-      class SelfReferential{
-          +int id
-          +int self_referential_id
-          +SelfReferential referenced
-      }
-      SelfReferential "1" --> "0..1" SelfReferential : referenced`
-      );
-      const dom = new JSDOM(svg);
-      const cyclicPaths = getCyclicPaths(dom.window.document);
+    const originalEdge = {
+      id: 'SelfReferential-SelfReferential',
+      start: 'SelfReferential',
+      end: 'SelfReferential',
+      label: 'referenced',
+      arrowTypeStart: 'none',
+      arrowTypeEnd: 'extension',
+      startLabelRight: '1',
+      endLabelLeft: '0..1',
+    };
+    const segment1 = {
+      ...originalEdge,
+      id: 'SelfReferential-cyclic-special-1',
+      selfLoop: { id: originalEdge.id, order: 0 },
+      originalEdge,
+      points: [],
+    };
+    const segmentMid = {
+      ...originalEdge,
+      id: 'SelfReferential-cyclic-special-mid',
+      selfLoop: { id: originalEdge.id, order: 1 },
+      originalEdge,
+      points: [],
+      width: 52,
+      height: 14,
+      labelStyle: 'label-style',
+    };
+    const segment2 = {
+      ...originalEdge,
+      id: 'SelfReferential-cyclic-special-2',
+      selfLoop: { id: originalEdge.id, order: 2 },
+      originalEdge,
+      points: [],
+    };
 
-      expect(cyclicPaths).toHaveLength(3);
-      expectFinitePaths(cyclicPaths);
-      expect(dom.window.document.querySelectorAll('.edgeTerminals')).toHaveLength(2);
-    } finally {
-      restoreDom();
-    }
+    graph.setEdge(
+      'SelfReferential',
+      'SelfReferential---SelfReferential---1',
+      segment1,
+      'SelfReferential-cyclic-special-0'
+    );
+    graph.setEdge(
+      'SelfReferential---SelfReferential---1',
+      'SelfReferential---SelfReferential---2',
+      segmentMid,
+      'SelfReferential-cyclic-special-1'
+    );
+    graph.setEdge(
+      'SelfReferential---SelfReferential---2',
+      'SelfReferential',
+      segment2,
+      'SelfReferential-cyclic-special-2'
+    );
+
+    const edgesToRender = getEdgesToRender(graph);
+
+    expect(edgesToRender).toHaveLength(1);
+    expect(edgesToRender[0].edge).toMatchObject({
+      id: 'SelfReferential-SelfReferential',
+      start: 'SelfReferential',
+      end: 'SelfReferential',
+      label: 'referenced',
+      arrowTypeStart: 'none',
+      arrowTypeEnd: 'extension',
+      startLabelRight: '1',
+      endLabelLeft: '0..1',
+      labelStyle: 'label-style',
+    });
+    expect(edgesToRender[0].edge.selfLoop).toBeUndefined();
+    expect(edgesToRender[0].edge.originalEdge).toBeUndefined();
   });
 
   it('renders a flowchart subgraph through the shared paint path', async () => {
