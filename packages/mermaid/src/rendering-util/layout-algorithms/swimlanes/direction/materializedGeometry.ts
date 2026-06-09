@@ -1794,6 +1794,27 @@ export function resolveRenderedOrthogonalCrossings(
     rect: RectLite;
   }
 
+  interface CrossingPair {
+    first: any;
+    second: any;
+    count: number;
+  }
+
+  interface CrossingSnapshot {
+    count: number;
+    pairs: CrossingPair[];
+    edgeSet: Set<any>;
+    edges: any[];
+  }
+
+  interface PairCandidate {
+    path: PointLite[];
+    segments: SegmentLite[];
+    sharedTrackConflicts: Set<any>;
+    totalBends: number;
+    length: number;
+  }
+
   const realNodes: NodeInfo[] = [];
   for (const node of nodeByIdMap.values()) {
     if (
@@ -1831,6 +1852,7 @@ export function resolveRenderedOrthogonalCrossings(
   };
 
   const visibleEdges = edges.filter((edge) => !(edge as { isLayoutOnly?: boolean }).isLayoutOnly);
+  const edgeIndex = new Map(visibleEdges.map((edge, index) => [edge, index]));
 
   const outwardTracksForSide = (side: RectSide): number[] => {
     const outward = side === 'left' || side === 'top' ? -1 : 1;
@@ -1849,43 +1871,187 @@ export function resolveRenderedOrthogonalCrossings(
       replacements.get(edge) ?? (edge as { points?: PointLite[] }).points ?? []
     );
 
-  const pointsFor = (edge: any, replacementEdge?: any, replacement?: PointLite[]): PointLite[] =>
-    dedupeConsecutivePoints(
-      edge === replacementEdge
-        ? (replacement ?? [])
-        : ((edge as { points?: PointLite[] }).points ?? [])
-    );
-
-  const crossingCount = (replacements: Map<any, PointLite[]> = new Map()): number => {
+  const crossingCountBetweenSegments = (
+    firstSegments: SegmentLite[],
+    secondSegments: SegmentLite[]
+  ): number => {
     let count = 0;
-    for (let i = 0; i < visibleEdges.length; i++) {
-      const first = visibleEdges[i];
-      const firstSegments = segmentsFor(replacementPointsFor(first, replacements));
-      for (let j = i + 1; j < visibleEdges.length; j++) {
-        const second = visibleEdges[j];
-        const secondSegments = segmentsFor(replacementPointsFor(second, replacements));
-        for (const firstSegment of firstSegments) {
-          for (const secondSegment of secondSegments) {
-            if (
-              orthogonalSegmentsStrictlyCross(
-                firstSegment.a,
-                firstSegment.b,
-                secondSegment.a,
-                secondSegment.b,
-                EPS_LOCAL
-              )
-            ) {
-              count++;
-            }
-          }
+    for (const firstSegment of firstSegments) {
+      for (const secondSegment of secondSegments) {
+        if (
+          orthogonalSegmentsStrictlyCross(
+            firstSegment.a,
+            firstSegment.b,
+            secondSegment.a,
+            secondSegment.b,
+            EPS_LOCAL
+          )
+        ) {
+          count++;
         }
       }
     }
     return count;
   };
 
-  const crossingCountWithSingleReplacement = (edge: any, replacement: PointLite[]): number =>
-    crossingCount(new Map<any, PointLite[]>([[edge, replacement]]));
+  const crossingCountBetweenPaths = (first: PointLite[], second: PointLite[]): number =>
+    crossingCountBetweenSegments(segmentsFor(first), segmentsFor(second));
+
+  const crossingSnapshot = (replacements: Map<any, PointLite[]> = new Map()): CrossingSnapshot => {
+    let count = 0;
+    const pairs: CrossingPair[] = [];
+    const edgeSet = new Set<any>();
+    const edgeOrder: any[] = [];
+    const addEdge = (edge: any): void => {
+      if (!edgeSet.has(edge)) {
+        edgeSet.add(edge);
+        edgeOrder.push(edge);
+      }
+    };
+
+    for (let i = 0; i < visibleEdges.length; i++) {
+      const first = visibleEdges[i];
+      const firstPoints = replacementPointsFor(first, replacements);
+      for (let j = i + 1; j < visibleEdges.length; j++) {
+        const second = visibleEdges[j];
+        const pairCount = crossingCountBetweenPaths(
+          firstPoints,
+          replacementPointsFor(second, replacements)
+        );
+        if (pairCount > 0) {
+          count += pairCount;
+          pairs.push({ first, second, count: pairCount });
+          addEdge(first);
+          addEdge(second);
+        }
+      }
+    }
+
+    edgeOrder.sort((a, b) => (edgeIndex.get(a) ?? 0) - (edgeIndex.get(b) ?? 0));
+    return {
+      count,
+      pairs,
+      edgeSet,
+      edges: edgeOrder,
+    };
+  };
+
+  const crossingCountWithReplacements = (
+    current: CrossingSnapshot,
+    replacements: Map<any, PointLite[]>
+  ): number => {
+    const changed = new Set(replacements.keys());
+    if (changed.size === 0) {
+      return current.count;
+    }
+
+    let currentAffected = 0;
+    for (const pair of current.pairs) {
+      if (changed.has(pair.first) || changed.has(pair.second)) {
+        currentAffected += pair.count;
+      }
+    }
+
+    let replacementAffected = 0;
+    for (let i = 0; i < visibleEdges.length; i++) {
+      const first = visibleEdges[i];
+      const firstChanged = changed.has(first);
+      const firstPoints = replacementPointsFor(first, replacements);
+      for (let j = i + 1; j < visibleEdges.length; j++) {
+        const second = visibleEdges[j];
+        if (!firstChanged && !changed.has(second)) {
+          continue;
+        }
+        replacementAffected += crossingCountBetweenPaths(
+          firstPoints,
+          replacementPointsFor(second, replacements)
+        );
+      }
+    }
+
+    return current.count - currentAffected + replacementAffected;
+  };
+
+  const crossingComponents = (snapshot: CrossingSnapshot): any[][] => {
+    const neighbors = new Map<any, Set<any>>();
+    for (const pair of snapshot.pairs) {
+      const firstNeighbors = neighbors.get(pair.first) ?? new Set<any>();
+      firstNeighbors.add(pair.second);
+      neighbors.set(pair.first, firstNeighbors);
+
+      const secondNeighbors = neighbors.get(pair.second) ?? new Set<any>();
+      secondNeighbors.add(pair.first);
+      neighbors.set(pair.second, secondNeighbors);
+    }
+
+    const components: any[][] = [];
+    const seen = new Set<any>();
+    for (const edge of snapshot.edges) {
+      if (seen.has(edge)) {
+        continue;
+      }
+      const queue = [edge];
+      const component: any[] = [];
+      seen.add(edge);
+      while (queue.length > 0) {
+        const current = queue.pop()!;
+        component.push(current);
+        for (const next of neighbors.get(current) ?? []) {
+          if (!seen.has(next)) {
+            seen.add(next);
+            queue.push(next);
+          }
+        }
+      }
+      component.sort((a, b) => (edgeIndex.get(a) ?? 0) - (edgeIndex.get(b) ?? 0));
+      if (component.length > 1) {
+        components.push(component);
+      }
+    }
+
+    return components;
+  };
+
+  const endpointIdsFor = (edge: any): string[] =>
+    [(edge as { start?: string }).start, (edge as { end?: string }).end].filter(
+      (id): id is string => Boolean(id)
+    );
+
+  const pairSearchGroups = (snapshot: CrossingSnapshot): any[][] => {
+    const groups: any[][] = [];
+    for (const component of crossingComponents(snapshot)) {
+      const componentSet = new Set(component);
+      const componentEndpointIds = new Set(component.flatMap((edge) => endpointIdsFor(edge)));
+      const group = [...component];
+      for (const edge of visibleEdges) {
+        if (componentSet.has(edge)) {
+          continue;
+        }
+        if (endpointIdsFor(edge).some((id) => componentEndpointIds.has(id))) {
+          group.push(edge);
+        }
+      }
+      group.sort((a, b) => (edgeIndex.get(a) ?? 0) - (edgeIndex.get(b) ?? 0));
+      groups.push(group);
+    }
+    return groups;
+  };
+
+  const crossingCountWithSingleReplacement = (
+    current: CrossingSnapshot,
+    edge: any,
+    replacement: PointLite[]
+  ): number =>
+    crossingCountWithReplacements(current, new Map<any, PointLite[]>([[edge, replacement]]));
+
+  const currentCrossingsByEdge = (current: CrossingSnapshot): Map<any, number> => {
+    const result = new Map<any, number>();
+    for (const pair of current.pairs) {
+      result.set(pair.first, (result.get(pair.first) ?? 0) + pair.count);
+      result.set(pair.second, (result.get(pair.second) ?? 0) + pair.count);
+    }
+    return result;
+  };
 
   const pathLength = (points: PointLite[]): number =>
     points.slice(1).reduce((sum, point, index) => {
@@ -2167,13 +2333,40 @@ export function resolveRenderedOrthogonalCrossings(
     return candidates;
   };
 
-  const candidateIsSafe = (
-    edge: any,
-    path: PointLite[],
-    replacements: Map<any, PointLite[]>
-  ): boolean => !pathHitsNode(edge, path) && !pathHasSegmentConflict(edge, path, replacements);
+  const currentSegmentsByEdge = (): Map<any, SegmentLite[]> =>
+    new Map(visibleEdges.map((edge) => [edge, segmentsFor(replacementPointsFor(edge))] as const));
 
-  const pairCandidatesFor = (edge: any, currentCrossings: number): PointLite[] => {
+  const sharedTrackConflictsFor = (
+    edge: any,
+    candidateSegments: SegmentLite[],
+    baseSegments: Map<any, SegmentLite[]>
+  ): Set<any> => {
+    const conflicts = new Set<any>();
+    for (const other of visibleEdges) {
+      if (other === edge) {
+        continue;
+      }
+      const otherSegments = baseSegments.get(other) ?? segmentsFor(replacementPointsFor(other));
+      if (
+        candidateSegments.some((candidateSegment) =>
+          otherSegments.some(
+            (otherSegment) =>
+              sameAxisSegmentOverlapLength(candidateSegment, otherSegment, 0.5) >= MIN_SHARED
+          )
+        )
+      ) {
+        conflicts.add(other);
+      }
+    }
+    return conflicts;
+  };
+
+  const pairCandidatesFor = (
+    edge: any,
+    current: CrossingSnapshot,
+    baseSegments: Map<any, SegmentLite[]>,
+    crossingCountByEdge: Map<any, number>
+  ): PairCandidate[] => {
     const seen = new Set<string>();
     const candidates = candidatePathsFor(edge)
       .map((candidate) => simplifyPolyline(dedupeConsecutivePoints(candidate)))
@@ -2190,65 +2383,191 @@ export function resolveRenderedOrthogonalCrossings(
         seen.add(key);
         return true;
       })
-      .map((candidate) => ({
-        candidate,
-        crossings: crossingCountWithSingleReplacement(edge, candidate),
-        bends: countOrthogonalBends(candidate, EPS_LOCAL),
-        length: pathLength(candidate),
-      }))
-      .filter(({ crossings }) => crossings <= currentCrossings)
+      .map((candidate) => {
+        const candidateSegments = segmentsFor(candidate);
+        let replacementAffected = 0;
+        for (const other of visibleEdges) {
+          if (other === edge) {
+            continue;
+          }
+          replacementAffected += crossingCountBetweenSegments(
+            candidateSegments,
+            baseSegments.get(other) ?? segmentsFor(replacementPointsFor(other))
+          );
+        }
+        return {
+          candidate,
+          candidateSegments,
+          crossings: current.count - (crossingCountByEdge.get(edge) ?? 0) + replacementAffected,
+          bends: countOrthogonalBends(candidate, EPS_LOCAL),
+          totalBends: countOrthogonalBends(candidate),
+          length: pathLength(candidate),
+        };
+      })
+      .filter(({ crossings }) => crossings <= current.count)
       .sort((a, b) => a.crossings - b.crossings || a.bends - b.bends || a.length - b.length);
-    return candidates.slice(0, MAX_PAIR_CANDIDATES_PER_EDGE).map(({ candidate }) => candidate);
+    return candidates.slice(0, MAX_PAIR_CANDIDATES_PER_EDGE).map((candidate) => {
+      return {
+        path: candidate.candidate,
+        segments: candidate.candidateSegments,
+        sharedTrackConflicts: sharedTrackConflictsFor(
+          edge,
+          candidate.candidateSegments,
+          baseSegments
+        ),
+        totalBends: candidate.totalBends,
+        length: candidate.length,
+      };
+    });
   };
 
-  const bestPairedReplacement = (currentCrossings: number): Map<any, PointLite[]> | undefined => {
+  const pairCrossingCount = (
+    current: CrossingSnapshot,
+    firstEdge: any,
+    firstCandidate: PairCandidate,
+    secondEdge: any,
+    secondCandidate: PairCandidate,
+    baseSegments: Map<any, SegmentLite[]>
+  ): number => {
+    let currentAffected = 0;
+    for (const pair of current.pairs) {
+      if (
+        pair.first === firstEdge ||
+        pair.second === firstEdge ||
+        pair.first === secondEdge ||
+        pair.second === secondEdge
+      ) {
+        currentAffected += pair.count;
+      }
+    }
+
+    let replacementAffected = crossingCountBetweenSegments(
+      firstCandidate.segments,
+      secondCandidate.segments
+    );
+    for (const other of visibleEdges) {
+      if (other === firstEdge || other === secondEdge) {
+        continue;
+      }
+      const otherSegments = baseSegments.get(other) ?? segmentsFor(replacementPointsFor(other));
+      replacementAffected +=
+        crossingCountBetweenSegments(firstCandidate.segments, otherSegments) +
+        crossingCountBetweenSegments(secondCandidate.segments, otherSegments);
+    }
+
+    return current.count - currentAffected + replacementAffected;
+  };
+
+  const conflictsOnlyWith = (candidate: PairCandidate, edge: any): boolean => {
+    for (const conflict of candidate.sharedTrackConflicts) {
+      if (conflict !== edge) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const bestPairedReplacement = (current: CrossingSnapshot): Map<any, PointLite[]> | undefined => {
     const currentBends = totalBends();
     const currentLength = totalLength();
-    const options = visibleEdges
-      .map((edge) => ({ edge, candidates: pairCandidatesFor(edge, currentCrossings) }))
-      .filter(({ candidates }) => candidates.length > 0);
+    const baseSegments = currentSegmentsByEdge();
+    const crossingCountByEdge = currentCrossingsByEdge(current);
+    const baseBendsByEdge = new Map(
+      visibleEdges.map((edge) => [edge, countOrthogonalBends(replacementPointsFor(edge))] as const)
+    );
+    const baseLengthByEdge = new Map(
+      visibleEdges.map((edge) => [edge, pathLength(replacementPointsFor(edge))] as const)
+    );
+    const optionsByEdge = new Map<any, { edge: any; candidates: PairCandidate[] }>();
+    const groups = pairSearchGroups(current);
+    for (const group of groups) {
+      for (const edge of group) {
+        if (optionsByEdge.has(edge)) {
+          continue;
+        }
+        const candidates = pairCandidatesFor(edge, current, baseSegments, crossingCountByEdge);
+        if (candidates.length > 0) {
+          optionsByEdge.set(edge, { edge, candidates });
+        }
+      }
+    }
 
     let bestReplacements: Map<any, PointLite[]> | undefined;
-    let bestCrossings = currentCrossings;
+    let bestCrossings = current.count;
     let bestBends = currentBends;
     let bestLength = currentLength;
 
-    for (let i = 0; i < options.length; i++) {
-      const first = options[i];
-      for (let j = i + 1; j < options.length; j++) {
-        const second = options[j];
-        for (const firstCandidate of first.candidates) {
-          for (const secondCandidate of second.candidates) {
-            const replacements = new Map<any, PointLite[]>([
-              [first.edge, firstCandidate],
-              [second.edge, secondCandidate],
-            ]);
-            if (
-              !candidateIsSafe(first.edge, firstCandidate, replacements) ||
-              !candidateIsSafe(second.edge, secondCandidate, replacements)
-            ) {
-              continue;
-            }
+    for (const group of groups) {
+      const crossingEdgeSet = new Set(group.filter((edge) => current.edgeSet.has(edge)));
+      const options = group
+        .map((edge) => optionsByEdge.get(edge))
+        .filter((option): option is { edge: any; candidates: PairCandidate[] } => Boolean(option));
+      for (let i = 0; i < options.length; i++) {
+        const first = options[i];
+        for (let j = i + 1; j < options.length; j++) {
+          const second = options[j];
+          if (!crossingEdgeSet.has(first.edge) && !crossingEdgeSet.has(second.edge)) {
+            continue;
+          }
+          for (const firstCandidate of first.candidates) {
+            for (const secondCandidate of second.candidates) {
+              if (
+                !conflictsOnlyWith(firstCandidate, second.edge) ||
+                !conflictsOnlyWith(secondCandidate, first.edge)
+              ) {
+                continue;
+              }
 
-            const candidateCrossings = crossingCount(replacements);
-            if (candidateCrossings >= currentCrossings) {
-              continue;
-            }
-            const candidateBends = totalBends(replacements);
-            const candidateLength = totalLength(replacements);
-            if (
-              candidateCrossings > bestCrossings ||
-              (candidateCrossings === bestCrossings &&
-                (candidateBends > bestBends ||
-                  (candidateBends === bestBends && candidateLength >= bestLength)))
-            ) {
-              continue;
-            }
+              const candidatesConflict = firstCandidate.segments.some((firstSegment) =>
+                secondCandidate.segments.some(
+                  (secondSegment) =>
+                    sameAxisSegmentOverlapLength(firstSegment, secondSegment, 0.5) >= MIN_SHARED
+                )
+              );
+              if (candidatesConflict) {
+                continue;
+              }
 
-            bestReplacements = replacements;
-            bestCrossings = candidateCrossings;
-            bestBends = candidateBends;
-            bestLength = candidateLength;
+              const candidateCrossings = pairCrossingCount(
+                current,
+                first.edge,
+                firstCandidate,
+                second.edge,
+                secondCandidate,
+                baseSegments
+              );
+              if (candidateCrossings >= current.count) {
+                continue;
+              }
+              const candidateBends =
+                currentBends -
+                (baseBendsByEdge.get(first.edge) ?? 0) -
+                (baseBendsByEdge.get(second.edge) ?? 0) +
+                firstCandidate.totalBends +
+                secondCandidate.totalBends;
+              const candidateLength =
+                currentLength -
+                (baseLengthByEdge.get(first.edge) ?? 0) -
+                (baseLengthByEdge.get(second.edge) ?? 0) +
+                firstCandidate.length +
+                secondCandidate.length;
+              if (
+                candidateCrossings > bestCrossings ||
+                (candidateCrossings === bestCrossings &&
+                  (candidateBends > bestBends ||
+                    (candidateBends === bestBends && candidateLength >= bestLength)))
+              ) {
+                continue;
+              }
+
+              bestReplacements = new Map<any, PointLite[]>([
+                [first.edge, firstCandidate.path],
+                [second.edge, secondCandidate.path],
+              ]);
+              bestCrossings = candidateCrossings;
+              bestBends = candidateBends;
+              bestLength = candidateLength;
+            }
           }
         }
       }
@@ -2258,7 +2577,8 @@ export function resolveRenderedOrthogonalCrossings(
   };
 
   for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
-    const currentCrossings = crossingCount();
+    const current = crossingSnapshot();
+    const currentCrossings = current.count;
     if (currentCrossings === 0) {
       return;
     }
@@ -2268,13 +2588,13 @@ export function resolveRenderedOrthogonalCrossings(
     let bestCrossings = currentCrossings;
     let bestBends = Number.POSITIVE_INFINITY;
 
-    for (const edge of visibleEdges) {
-      const currentEdgeBends = countOrthogonalBends(pointsFor(edge), EPS_LOCAL);
+    for (const edge of current.edges) {
+      const currentEdgeBends = countOrthogonalBends(replacementPointsFor(edge), EPS_LOCAL);
       for (const candidate of candidatePathsFor(edge)) {
         const candidateHitsNode = pathHitsNode(edge, candidate);
         const candidateHasSegmentConflict =
           !candidateHitsNode && pathHasSegmentConflict(edge, candidate);
-        const candidateCrossings = crossingCountWithSingleReplacement(edge, candidate);
+        const candidateCrossings = crossingCountWithSingleReplacement(current, edge, candidate);
         const candidateBends = countOrthogonalBends(candidate, EPS_LOCAL);
         if (candidateHitsNode || candidateHasSegmentConflict) {
           continue;
@@ -2303,7 +2623,7 @@ export function resolveRenderedOrthogonalCrossings(
       continue;
     }
 
-    const pairedReplacement = bestPairedReplacement(currentCrossings);
+    const pairedReplacement = bestPairedReplacement(current);
     if (!pairedReplacement) {
       return;
     }
