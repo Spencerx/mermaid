@@ -481,4 +481,62 @@ clusterA --> C`
       restoreDom();
     }
   });
+
+  it('renders hand-drawn class diagrams with nested namespaces', async () => {
+    const restoreDom = setupDom();
+
+    try {
+      const dotNotation = await mermaidAPI.render(
+        'class-nested-namespace-dot-test',
+        `%%{init: {"look": "handDrawn", "htmlLabels": true}}%%
+classDiagram
+namespace Company.Engineering.Backend {
+  class Developer {
+    +writeCode()
+  }
+}
+namespace Company.Engineering.Frontend {
+  class Designer {
+    +createMockup()
+  }
+}
+namespace Company.Engineering {
+  class TechLead {
+    +planSprint()
+  }
+}
+TechLead --> Developer : leads
+TechLead --> Designer : leads`
+      );
+      const syntactic = await mermaidAPI.render(
+        'class-nested-namespace-syntax-test',
+        `%%{init: {"look": "handDrawn", "htmlLabels": true}}%%
+classDiagram
+namespace Platform {
+  namespace Auth {
+    class UserService {
+      +login()
+      +logout()
+    }
+  }
+  namespace Data {
+    class Repository {
+      +find()
+      +save()
+    }
+  }
+  class Gateway {
+    +route()
+  }
+}
+Gateway --> UserService : delegates
+Gateway --> Repository : delegates`
+      );
+
+      expect(new JSDOM(dotNotation.svg).window.document.querySelector('svg')).toBeTruthy();
+      expect(new JSDOM(syntactic.svg).window.document.querySelector('svg')).toBeTruthy();
+    } finally {
+      restoreDom();
+    }
+  });
 });

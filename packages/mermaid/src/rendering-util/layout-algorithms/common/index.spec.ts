@@ -349,6 +349,42 @@ describe('paintLayoutData', () => {
     expect(mocks.positionNode).toHaveBeenCalledWith(clusterNode);
   });
 
+  it('lets layout algorithms decide which group nodes are clusters', async () => {
+    const { paintLayoutData } = await import('./index.js');
+    const leafGroup = node('G', { isGroup: true, shape: 'rectWithTitle' });
+    const data = layout({
+      nodes: [leafGroup],
+      edges: [],
+    });
+    const measured = measure();
+
+    await paintLayoutData(data, { measure: measured } as never, {
+      isCluster: () => false,
+    });
+
+    expect(mocks.insertCluster).not.toHaveBeenCalled();
+    expect(mocks.positionNode).toHaveBeenCalledWith(leafGroup);
+  });
+
+  it('lets layout algorithms skip nodes that were already painted elsewhere', async () => {
+    const { paintLayoutData } = await import('./index.js');
+    const rootNode = node('root');
+    const extractedNode = node('nested');
+    const data = layout({
+      nodes: [rootNode, extractedNode],
+      edges: [],
+    });
+    const measured = measure();
+
+    await paintLayoutData(data, { measure: measured } as never, {
+      skipNode: (candidate) => candidate.id === extractedNode.id,
+    });
+
+    expect(mocks.positionNode).toHaveBeenCalledTimes(1);
+    expect(mocks.positionNode).toHaveBeenCalledWith(rootNode);
+    expect(mocks.positionNode).not.toHaveBeenCalledWith(extractedNode);
+  });
+
   it('inserts and positions edge labels after drawing labelled edges', async () => {
     const { paintLayoutData } = await import('./index.js');
     const labelledEdge = edge('labelled', { label: 'Yes', x: 0, y: 0 } as Partial<Edge>);

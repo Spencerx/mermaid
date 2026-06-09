@@ -746,5 +746,8 @@ export const render = createCommonLayoutRenderer({
   runLayoutCore: runDagreLayoutCore,
   paintOptions: {
     clusterDb,
+    skipNode: (node, { measure }) => !measure.graph.hasNode(node.id),
+    isCluster: (node, { measure }) =>
+      measure.graph.hasNode(node.id) && (measure.graph.children(node.id) ?? []).length > 0,
   },
 });

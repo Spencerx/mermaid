@@ -55,6 +55,14 @@ export interface CommonLayoutPaintContext<
 
 export interface CommonLayoutPaintOptions {
   clusterDb?: ClusterDb;
+  skipNode?: (
+    node: LayoutData['nodes'][number],
+    context: CommonLayoutPaintContext<unknown, CommonLayoutMeasure>
+  ) => boolean;
+  isCluster?: (
+    node: LayoutData['nodes'][number],
+    context: CommonLayoutPaintContext<unknown, CommonLayoutMeasure>
+  ) => boolean;
   skipEdge?: (edge: Edge) => boolean;
   skipIntersect?: boolean | ((edge: Edge) => boolean);
 }
@@ -162,14 +170,18 @@ export async function defaultMeasureLayout(
 
 export async function paintLayoutData(
   data4Layout: LayoutData,
-  { measure }: CommonLayoutPaintContext<unknown, CommonLayoutMeasure>,
+  context: CommonLayoutPaintContext<unknown, CommonLayoutMeasure>,
   options: CommonLayoutPaintOptions = {}
 ): Promise<void> {
+  const { measure } = context;
   const { groups } = measure;
 
   // Render clusters and position nodes; this also populates node.intersect on shapes.
   for (const node of data4Layout.nodes) {
-    await paintLayoutNode(groups, node);
+    if (options.skipNode?.(node, context)) {
+      continue;
+    }
+    await paintLayoutNode(groups, node, context, options);
   }
 
   const nodeById = buildNodeLookup(data4Layout.nodes);
@@ -185,15 +197,25 @@ export async function paintLayoutData(
 
 async function paintLayoutNode(
   groups: CommonLayoutMeasure['groups'],
-  node: LayoutData['nodes'][number]
+  node: LayoutData['nodes'][number],
+  context: CommonLayoutPaintContext<unknown, CommonLayoutMeasure>,
+  options: CommonLayoutPaintOptions
 ): Promise<void> {
   if ((node as { clusterNode?: boolean }).clusterNode) {
     positionNode(node);
-  } else if (node.isGroup) {
+  } else if (shouldPaintAsCluster(node, context, options)) {
     await insertCluster(groups.clusters, node);
   } else {
     positionNode(node);
   }
+}
+
+function shouldPaintAsCluster(
+  node: LayoutData['nodes'][number],
+  context: CommonLayoutPaintContext<unknown, CommonLayoutMeasure>,
+  options: CommonLayoutPaintOptions
+): boolean {
+  return options.isCluster?.(node, context) ?? Boolean(node.isGroup);
 }
 
 function buildNodeLookup(nodes: LayoutData['nodes']): Map<string, LayoutData['nodes'][number]> {
