@@ -40,6 +40,19 @@ const setupDom = () => {
   };
 };
 
+const getCyclicPaths = (document) =>
+  [...document.querySelectorAll('.edgePaths path')].filter((path) =>
+    path.getAttribute('data-id')?.includes('cyclic-special')
+  );
+
+const expectFinitePaths = (paths) => {
+  for (const path of paths) {
+    const pathData = path.getAttribute('d');
+    expect(pathData).toBeTruthy();
+    expect(pathData).not.toMatch(/NaN|undefined/);
+  }
+};
+
 describe('getEdgesToRender', () => {
   beforeAll(async () => {
     await mermaid.registerExternalDiagrams([]);
@@ -453,6 +466,82 @@ C --> C`
       expect(
         dom.window.document.querySelectorAll('.edgePaths path[data-id*="cyclic-special"]')
       ).toHaveLength(0);
+    } finally {
+      restoreDom();
+    }
+  });
+
+  it('keeps reverse-order nested flowchart subgraphs visible through shared paint', async () => {
+    const restoreDom = setupDom();
+
+    try {
+      const { svg } = await mermaidAPI.render(
+        'reverse-order-subgraph-test',
+        `flowchart LR
+        a -->b
+        subgraph A
+        B
+        end
+        subgraph B
+        b
+        end`
+      );
+      const dom = new JSDOM(svg);
+      const clusters = [...dom.window.document.querySelectorAll('.cluster')];
+
+      expect(clusters).toHaveLength(2);
+      expect(clusters.map((cluster) => cluster.id)).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining('reverse-order-subgraph-test-A'),
+          expect.stringContaining('reverse-order-subgraph-test-B'),
+        ])
+      );
+    } finally {
+      restoreDom();
+    }
+  });
+
+  it('renders recursive ER relationships with their dagre self-loop segments', async () => {
+    const restoreDom = setupDom();
+
+    try {
+      const { svg } = await mermaidAPI.render(
+        'er-recursive-self-loop-test',
+        `erDiagram
+        CUSTOMER ||..o{ CUSTOMER : refers
+        CUSTOMER ||--o{ ORDER : places
+        ORDER ||--|{ LINE-ITEM : contains`
+      );
+      const dom = new JSDOM(svg);
+      const cyclicPaths = getCyclicPaths(dom.window.document);
+
+      expect(cyclicPaths).toHaveLength(3);
+      expectFinitePaths(cyclicPaths);
+    } finally {
+      restoreDom();
+    }
+  });
+
+  it('renders class self-loops with multiplicity terminal labels', async () => {
+    const restoreDom = setupDom();
+
+    try {
+      const { svg } = await mermaidAPI.render(
+        'class-recursive-self-loop-test',
+        `classDiagram
+      class SelfReferential{
+          +int id
+          +int self_referential_id
+          +SelfReferential referenced
+      }
+      SelfReferential "1" --> "0..1" SelfReferential : referenced`
+      );
+      const dom = new JSDOM(svg);
+      const cyclicPaths = getCyclicPaths(dom.window.document);
+
+      expect(cyclicPaths).toHaveLength(3);
+      expectFinitePaths(cyclicPaths);
+      expect(dom.window.document.querySelectorAll('.edgeTerminals')).toHaveLength(2);
     } finally {
       restoreDom();
     }

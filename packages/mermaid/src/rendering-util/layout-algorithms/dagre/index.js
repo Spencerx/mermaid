@@ -740,12 +740,24 @@ export const runDagreLayoutCore = (_data4Layout, context) => {
   return measuredLayout;
 };
 
+const getDagrePaintNodes = (data4Layout, { measure }) => {
+  const nodeById = new Map(data4Layout.nodes.map((node) => [node.id, node]));
+  return sortNodesByHierarchy(measure.graph)
+    .map((nodeId) => nodeById.get(nodeId) ?? measure.graph.node(nodeId))
+    .filter(Boolean);
+};
+
+const getDagreEdgeNode = (nodeId, _edge, { measure }) =>
+  nodeId ? measure.graph.node(nodeId) : undefined;
+
 export const render = createCommonLayoutRenderer({
   prepareLayout: prepareLayoutForDagre,
   measureLayout: measureDagreLayout,
   runLayoutCore: runDagreLayoutCore,
   paintOptions: {
     clusterDb,
+    getNodes: getDagrePaintNodes,
+    getEdgeNode: getDagreEdgeNode,
     skipNode: (node, { measure }) => !measure.graph.hasNode(node.id),
     isCluster: (node, { measure }) =>
       measure.graph.hasNode(node.id) && (measure.graph.children(node.id) ?? []).length > 0,
