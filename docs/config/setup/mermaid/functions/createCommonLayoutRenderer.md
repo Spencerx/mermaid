@@ -12,7 +12,7 @@
 
 > **createCommonLayoutRenderer**<`CoreResult`, `PreparedLayout`, `MeasureResult`>(`__namedParameters`): (`data4Layout`, `svg`, `helpers?`, `options?`, `positions?`) => `Promise`<`void`>
 
-Defined in: [packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts:88](https://github.com/mermaid-js/mermaid/blob/master/packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts#L88)
+Defined in: [packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts:107](https://github.com/mermaid-js/mermaid/blob/master/packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts#L107)
 
 ## Type Parameters
 
