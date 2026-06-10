@@ -183,6 +183,62 @@ describe('getEdgesToRender', () => {
     expect(data4Layout.edges[0].selfLoop).toBeUndefined();
   });
 
+  // Documents a known limitation: normalization only covers the top-level graph. Cluster
+  // children and intra-cluster edges live in the nested cluster graph (own coordinate space,
+  // rendered by the recursive paint path) and are not written back onto LayoutData.
+  it('leaves recursive cluster children untouched and drops intra-cluster edges from LayoutData', () => {
+    const graph = new Graph({ multigraph: true, compound: true });
+    graph.setGraph({ rankdir: 'TB' });
+    // Top-level graph after cluster extraction: the cluster is a single clusterNode whose
+    // children were moved into its nested graph.
+    graph.setNode('cluster1', {
+      id: 'cluster1',
+      clusterNode: true,
+      x: 50,
+      y: 60,
+      width: 80,
+      height: 70,
+    });
+    graph.setNode('X', { id: 'X', x: 50, y: 200, width: 30, height: 40 });
+    graph.setEdge(
+      'X',
+      'cluster1',
+      {
+        id: 'X-cluster1',
+        start: 'X',
+        end: 'cluster1',
+        points: [{ x: 50, y: 150 }],
+      },
+      'X-cluster1'
+    );
+    const data4Layout = {
+      nodes: [
+        { id: 'cluster1', isGroup: true },
+        { id: 'X', isGroup: false },
+        { id: 'child1', isGroup: false, parentId: 'cluster1' },
+      ],
+      edges: [
+        { id: 'X-cluster1', start: 'X', end: 'cluster1' },
+        { id: 'child1-child2', start: 'child1', end: 'child2' },
+      ],
+    };
+
+    applyDagreLayoutResult(data4Layout, {
+      graph,
+      mergeSelfLoops: true,
+      subGraphTitleTotalMargin: 10,
+    });
+
+    // Top-level nodes are normalized (cluster gets the full margin, regular nodes half).
+    expect(data4Layout.nodes[0]).toMatchObject({ x: 50, y: 70, width: 80, height: 70 });
+    expect(data4Layout.nodes[1]).toMatchObject({ x: 50, y: 205, width: 30, height: 40 });
+    // The cluster child is not in the top-level graph — it keeps its pre-layout values.
+    expect(data4Layout.nodes[2].x).toBeUndefined();
+    expect(data4Layout.nodes[2].y).toBeUndefined();
+    // Intra-cluster edges are absent from the normalized edges.
+    expect(data4Layout.edges.map((edge) => edge.id)).toEqual(['X-cluster1']);
+  });
+
   it('creates one compact render edge from self-loop layout segments', () => {
     const graph = new Graph({ multigraph: true, compound: true });
     graph.setNode('A', { id: 'A', x: 10, y: 10, width: 20, height: 20 });

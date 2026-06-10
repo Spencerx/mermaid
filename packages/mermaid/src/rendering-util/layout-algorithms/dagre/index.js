@@ -40,6 +40,10 @@ const shouldMergeSelfLoopSegments = (diagramType) =>
   diagramType === 'er' ||
   diagramType === 'classDiagram';
 
+// Keep this a fixed literal allowlist — never derive keys from graph data, since node ids and
+// other graph keys are user-controlled and copying them wholesale onto LayoutData would open a
+// property-injection surface. `intersect`/`calcIntersect` are function references installed by
+// the shape handlers; the painter needs them alongside the geometry.
 const DAGRE_NODE_LAYOUT_PROPERTIES = [
   'x',
   'y',
@@ -471,6 +475,20 @@ const normalizeDagreEdge = (edge, start, end, edgeOffsetY) => ({
   })),
 });
 
+/**
+ * Copy the Dagre layout results back onto LayoutData.
+ *
+ * Known limitations — the normalization only covers the top-level graph:
+ * - Recursive clusters: `adjustClustersAndEdges` moves cluster children and intra-cluster edges
+ *   into the nested `node.graph`, where they are laid out and painted during the recursive
+ *   measure pass in their own coordinate space. Those nodes keep their pre-layout LayoutData
+ *   values, and intra-cluster edges are absent from the normalized `data4Layout.edges`.
+ * - Self-loops on diagram types where segments are not merged: the three `*-cyclic-special-*`
+ *   layout segments replace the original self-edge in `data4Layout.edges`, since they are what
+ *   is actually rendered.
+ * Consumers of the normalized LayoutData must not assume it is a complete description of the
+ * rendered output for cluster diagrams — the recursive paint path owns the nested content.
+ */
 export const applyDagreLayoutResult = (data4Layout, measuredLayout) => {
   const { graph, mergeSelfLoops, subGraphTitleTotalMargin = 0 } = measuredLayout;
   const nodeById = new Map(data4Layout.nodes.map((node) => [node.id, node]));
@@ -746,7 +764,7 @@ export const measureDagreLayout = async (data4Layout, { element, preparedLayout 
   return measuredLayout;
 };
 
-export const runDagreLayoutCore = (_data4Layout, context) => {
+export const runDagreLayoutCore = (data4Layout, context) => {
   const measuredLayout = context.preparedLayout?.measuredLayout;
 
   if (!measuredLayout) {
@@ -754,7 +772,7 @@ export const runDagreLayoutCore = (_data4Layout, context) => {
   }
 
   runDagreGraphLayout(measuredLayout.graph);
-  applyDagreLayoutResult(_data4Layout, measuredLayout);
+  applyDagreLayoutResult(data4Layout, measuredLayout);
   return measuredLayout;
 };
 
