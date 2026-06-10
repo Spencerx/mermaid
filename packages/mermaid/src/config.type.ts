@@ -1091,6 +1091,18 @@ export interface XYChartConfig extends BaseDiagramConfig {
    * Should show the chart title
    */
   showTitle?: boolean;
+  /**
+   * Should show a legend for named plots
+   */
+  showLegend?: boolean;
+  /**
+   * Font size of the legend text
+   */
+  legendFontSize?: number;
+  /**
+   * Padding around the legend
+   */
+  legendPadding?: number;
   xAxis?: XYChartAxisConfig;
   yAxis?: XYChartAxisConfig;
   /**
