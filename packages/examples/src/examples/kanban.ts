@@ -6,32 +6,37 @@ export default {
   description: 'Visualize work items in a Kanban board',
   examples: [
     {
-      title: 'Kanban Diagram',
+      title: 'Sprint Board',
       isDefault: true,
       code: `---
 config:
   kanban:
-    ticketBaseUrl: 'https://github.com/mermaid-js/mermaid/issues/#TICKET#'
+    ticketBaseUrl: 'https://github.com/your-org/your-repo/issues/#TICKET#'
 ---
 kanban
+  todo[Backlog]
+    t1[Design new landing page]
+    t2[Update API documentation]@{ priority: 'Low' }
+  doing[In Progress]
+    t3[Fix login redirect bug]@{ ticket: 1234, assigned: 'alice', priority: 'Very High' }
+    t4[Migrate database to v2]@{ assigned: 'bob' }
+  review[In Review]
+    t5[Add dark mode support]@{ ticket: 1198, assigned: 'carol', priority: 'High' }
+  done[Done]
+    t6[Set up CI pipeline]
+    t7[Release v2.1.0]@{ ticket: 1150 }`,
+    },
+    {
+      title: 'Personal Task Board',
+      code: `kanban
   Todo
-    [Create Documentation]
-    docs[Create Blog about the new diagram]
+    [Buy groceries]
+    [Book dentist appointment]
   [In progress]
-    id6[Create renderer so that it works in all cases. We also add some extra text here for testing purposes. And some more just for the extra flare.]
-  id9[Ready for deploy]
-    id8[Design grammar]@{ assigned: 'knsv' }
-  id10[Ready for test]
-    id4[Create parsing tests]@{ ticket: 2038, assigned: 'K.Sveidqvist', priority: 'High' }
-    id66[last item]@{ priority: 'Very Low', assigned: 'knsv' }
-  id11[Done]
-    id5[define getData]
-    id2[Title of diagram is more than 100 chars when user duplicates diagram with 100 char]@{ ticket: 2036, priority: 'Very High'}
-    id3[Update DB function]@{ ticket: 2037, assigned: knsv, priority: 'High' }
-
-  id12[Can't reproduce]
-    id3[Weird flickering in Firefox]
-`,
+    [Plan weekend trip]
+  Done
+    [Pay electricity bill]
+    [Renew gym membership]`,
     },
   ],
 } satisfies DiagramMetadata;
