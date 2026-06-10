@@ -235,38 +235,42 @@ export class ErDB implements DiagramDB {
     let title = _title.text;
 
     const uniq = (a: any[]) => {
-      const prims: any = { boolean: {}, number: {}, string: {} };
-      const objs: any[] = [];
-
+      const seen = new Set<string>();
       let dir: string | undefined;
 
-      const nodeList = a.filter(function (item) {
-        const type = typeof item;
-        if (item.stmt && item.stmt === 'dir') {
-          dir = item.value;
+      const nodeList = a.filter((item) => {
+        if (item?.stmt) {
+          if (item.stmt === 'dir') {
+            dir = item.value;
+          }
           return false;
         }
-        if (item.trim() === '') {
+
+        if (typeof item !== 'string') {
           return false;
         }
-        if (type in prims) {
-          return prims[type].hasOwnProperty(item) ? false : (prims[type][item] = true);
-        } else {
-          return objs.includes(item) ? false : objs.push(item);
+
+        const trimmed = item.trim();
+        if (!trimmed) {
+          return false;
         }
+
+        if (seen.has(trimmed)) {
+          return false;
+        }
+        seen.add(trimmed);
+
+        return true;
       });
+
       return { nodeList, dir };
     };
 
     const result = uniq(list.flat());
     const nodeList = result.nodeList;
-    let dir = result.dir;
-    const erConfig = (getConfig().er ?? {}) as any;
-    dir =
-      dir ??
-      (erConfig.inheritDir
-        ? (this.getDirection() ?? (getConfig() as any).direction ?? undefined)
-        : undefined);
+    // If no explicit direction is declared within the subgraph, leave dir as undefined
+    // so that the layout engine applies its own default direction
+    const dir = result.dir;
 
     id = id ?? 'subGraph' + this.subCount;
     title = title || '';
@@ -335,7 +339,9 @@ export class ErDB implements DiagramDB {
     const existingNodes = this.subgraphNodeCache(allSubgraphs);
     const res: string[] = [];
     subGraph.nodes.forEach((_id, pos) => {
-      if (!existingNodes.has(_id)) {
+      if (existingNodes.has(_id)) {
+        log.warn(`Entity '${_id}' already belongs to another subgraph and will be ignored`);
+      } else {
         res.push(subGraph.nodes[pos]);
       }
     });
