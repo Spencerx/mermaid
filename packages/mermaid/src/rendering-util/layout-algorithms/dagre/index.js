@@ -1,6 +1,7 @@
 import { layout as dagreLayout } from 'dagre-d3-es/src/dagre/index.js';
 import * as graphlibJson from 'dagre-d3-es/src/graphlib/json.js';
 import * as graphlib from 'dagre-d3-es/src/graphlib/index.js';
+import { createLayoutElementGroups, insertMeasuredNode } from '../../createGraph.js';
 import { createCommonLayoutRenderer } from '../common/index.js';
 import { updateNodeBounds } from '../../rendering-elements/shapes/util.js';
 import {
@@ -9,7 +10,7 @@ import {
   findNonClusterChild,
   sortNodesByHierarchy,
 } from './mermaid-graphlib.js';
-import { insertNode, positionNode, setNodeElem } from '../../rendering-elements/nodes.js';
+import { positionNode, setNodeElem } from '../../rendering-elements/nodes.js';
 import { insertCluster } from '../../rendering-elements/clusters.js';
 import { insertEdgeLabel, positionEdgeLabel, insertEdge } from '../../rendering-elements/edges.js';
 import { log } from '../../../logger.js';
@@ -266,7 +267,15 @@ const measureDagreGraph = async ({
   const dir = graph.graph().rankdir;
   log.trace('Dir in recursive render - dir:', dir);
 
-  const elem = _elem.insert('g').attr('class', 'root');
+  const {
+    clusters,
+    edgePaths,
+    edgeLabels,
+    nodes,
+    rootGroups: elem,
+  } = createLayoutElementGroups(_elem, {
+    edgePathsClass: 'edgePaths',
+  });
   if (!graph.nodes()) {
     log.info('No nodes found for', graph);
   } else {
@@ -275,10 +284,6 @@ const measureDagreGraph = async ({
   if (graph.edges().length > 0) {
     log.info('Recursive edges', graph.edge(graph.edges()[0]));
   }
-  const clusters = elem.insert('g').attr('class', 'clusters');
-  const edgePaths = elem.insert('g').attr('class', 'edgePaths');
-  const edgeLabels = elem.insert('g').attr('class', 'edgeLabels');
-  const nodes = elem.insert('g').attr('class', 'nodes');
   const mergeSelfLoops = shouldMergeSelfLoopSegments(diagramType);
 
   // Insert nodes, this will insert them into the dom and each node will get a size. The size is updated
@@ -360,7 +365,7 @@ const measureDagreGraph = async ({
           // insertCluster(clusters, graph.node(v));
         } else {
           log.trace('Node - the non recursive path XAX', v, nodes, graph.node(v), dir);
-          await insertNode(nodes, graph.node(v), { config: siteConfig, dir });
+          await insertMeasuredNode(nodes, graph.node(v), { config: siteConfig, dir });
         }
       }
     })
