@@ -42,7 +42,7 @@ const injectIconDefs = async (
 ) => {
   const usedIcons = new Set<string>();
   const collect = (node: Node) => {
-    const icon = getNodeIcon(node.icon, node.nodeType, config.showIcons);
+    const icon = getNodeIcon(node, config);
     if (icon) {
       usedIcons.add(icon);
     }
@@ -59,7 +59,6 @@ const injectIconDefs = async (
       svg: await getIconSVG(icon, {
         height: ICON_SIZE,
         width: ICON_SIZE,
-        fallbackPrefix: treeViewIcons.prefix,
       }),
     }))
   );
@@ -89,7 +88,7 @@ const positionLabel = (
 
   // Explicit icon() annotations always render; defaults only when showIcons is on
   const iconOffset = ICON_SIZE + ICON_GAP;
-  const icon = getNodeIcon(node.icon, node.nodeType, config.showIcons);
+  const icon = getNodeIcon(node, config);
   const showIcon = icon !== undefined;
   if (icon) {
     nodeGroup

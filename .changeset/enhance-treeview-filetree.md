@@ -9,7 +9,8 @@ Extends the existing treeView-beta diagram with features useful for representing
 
 - **Bare labels**: Node names no longer require quotes (`src/` instead of `"src/"`)
 - **Built-in icons**: Files and directories get a default `file`/`folder` icon when the `showIcons` config option is enabled (off by default)
-- **Icon overrides**: `icon(pack:name)` syntax to use any icon from a registered iconify pack (via `registerIconPacks`) — explicit icons always render; `icon(none)` hides a node's default icon
+- **Auto-detected file-type icons**: with `showIcons` and the new `defaultIconPack` config option set, file icons are detected from filenames/extensions using icon names aligned with the iconify `devicon` pack
+- **Icon overrides**: `icon(pack:name)` syntax to use any icon from a registered iconify pack (via `registerIconPacks`) — explicit icons always render; `icon(none)` hides a node's default icon; with `defaultIconPack` set, `icon(name)` resolves in that pack
 - **CSS class annotations**: `:::highlight` syntax for styling individual nodes
 - **Descriptions**: `## description text` appended after a node label for additional context
 - **Comment support**: `%%` line comments within the tree body

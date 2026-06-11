@@ -130,6 +130,38 @@ treeView-beta
     );
   });
 
+  it('should auto-detect file-type icons with showIcons and defaultIconPack', () => {
+    imgSnapshotTest(
+      `---
+config:
+  treeView:
+    showIcons: true
+    defaultIconPack: devicon
+---
+treeView-beta
+            src/
+                App.ts
+                index.js
+                main.py
+                data.xyz
+            package.json`
+    );
+  });
+
+  it('should resolve unprefixed icon() overrides via defaultIconPack', () => {
+    imgSnapshotTest(
+      `---
+config:
+  treeView:
+    defaultIconPack: fa
+---
+treeView-beta
+            src/
+                alarm.txt icon(bell)
+                index.js`
+    );
+  });
+
   it('should render the unknown-icon fallback for unregistered icons', () => {
     imgSnapshotTest(
       `treeView-beta

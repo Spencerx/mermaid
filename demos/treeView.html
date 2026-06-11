@@ -132,6 +132,32 @@ my-project/
       </div>
     </div>
 
+    <h2>Automatic File-Type Icons (defaultIconPack)</h2>
+    <div class="demo">
+      <pre class="source"></pre>
+      <div class="rendered">
+        <pre class="mermaid">
+---
+config:
+  treeView:
+    showIcons: true
+    defaultIconPack: devicon
+---
+treeView-beta
+my-project/
+    src/
+        App.tsx
+        main.py
+        index.html
+        notes.txt
+    Dockerfile
+    package.json
+    README.md
+</pre
+        >
+      </div>
+    </div>
+
     <h2>Folder Names with Spaces</h2>
     <div class="demo">
       <pre class="source"></pre>
@@ -257,6 +283,11 @@ treeView-beta
           name: 'logos',
           loader: () =>
             fetch('https://unpkg.com/@iconify-json/logos/icons.json').then((res) => res.json()),
+        },
+        {
+          name: 'devicon',
+          loader: () =>
+            fetch('https://unpkg.com/@iconify-json/devicon/icons.json').then((res) => res.json()),
         },
       ]);
       mermaid.initialize({

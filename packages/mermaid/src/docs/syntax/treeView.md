@@ -116,6 +116,27 @@ treeView-beta
     package.json
 ```
 
+#### Automatic file-type icons
+
+Set `defaultIconPack` to the name of a registered [icon pack](../config/icons.md) to auto-detect file-type icons from filenames and extensions — `App.tsx` gets the `react` icon, `main.py` gets `python`, `Dockerfile` gets `docker`, and so on. The detected icon names are aligned with the [devicon](https://icon-sets.iconify.design/devicon/) pack. Directories and unrecognized files keep the built-in `folder`/`file` icons:
+
+```mermaid-example
+---
+config:
+  treeView:
+    showIcons: true
+    defaultIconPack: devicon
+---
+treeView-beta
+    src/
+        App.tsx
+        main.py
+        index.html
+        notes.txt
+    Dockerfile
+    package.json
+```
+
 #### Icon overrides with icon()
 
 Set a node's icon explicitly with `icon(name)`, where `name` is any icon from a registered [icon pack](../config/icons.md), referenced as `pack:name`. Explicit icons always render, even when `showIcons` is off:
@@ -128,7 +149,7 @@ treeView-beta
     package.json
 ```
 
-The built-in `file` and `folder` icons can be referenced without a prefix, e.g. `icon(folder)`.
+When `defaultIconPack` is set, unprefixed names resolve in that pack — `icon(react)` becomes shorthand for `icon(devicon:react)`. The built-in `file` and `folder` icons can always be referenced without a prefix, e.g. `icon(folder)`.
 
 ```note
 Icon packs are not bundled with Mermaid — they must be registered with `registerIconPacks` by the site embedding the diagram. See [registering icon packs](../config/icons.md). An unregistered icon renders as a question mark.
@@ -227,13 +248,14 @@ treeView-beta
 
 ## Config Variables
 
-| Property      | Description                                                                      | Default Value |
-| ------------- | -------------------------------------------------------------------------------- | ------------- |
-| rowIndent     | Indentation for each row                                                         | 10            |
-| paddingX      | Horizontal padding of row                                                        | 5             |
-| paddingY      | Vertical padding of row                                                          | 5             |
-| lineThickness | Thickness of the line                                                            | 1             |
-| showIcons     | Whether to show the default file/folder icons (explicit `icon()` always renders) | false         |
+| Property        | Description                                                                             | Default Value |
+| --------------- | --------------------------------------------------------------------------------------- | ------------- |
+| rowIndent       | Indentation for each row                                                                | 10            |
+| paddingX        | Horizontal padding of row                                                               | 5             |
+| paddingY        | Vertical padding of row                                                                 | 5             |
+| lineThickness   | Thickness of the line                                                                   | 1             |
+| showIcons       | Whether to show the default file/folder icons (explicit `icon()` always renders)        | false         |
+| defaultIconPack | Registered iconify pack used for auto-detected icons and unprefixed `icon()` references | ''            |
 
 ### Theme Variables
 

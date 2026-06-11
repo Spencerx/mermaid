@@ -1815,10 +1815,22 @@ export interface TreeViewDiagramConfig extends BaseDiagramConfig {
   lineThickness?: number;
   /**
    * Whether to show the default file/folder icons next to labels.
+   * When `defaultIconPack` is also set, file icons are auto-detected
+   * from the filename/extension.
    * Explicit `icon()` annotations always render, regardless of this setting.
    *
    */
   showIcons?: boolean;
+  /**
+   * Name of a registered iconify pack used to resolve unprefixed icon
+   * references — both auto-detected file-type icons and `icon(name)`
+   * annotations without a `pack:` prefix. The auto-detected icon names
+   * are aligned with the `devicon` pack. The pack must be registered
+   * with `registerIconPacks`. When empty, auto-detection is disabled
+   * and unprefixed names resolve to the built-in file/folder icons.
+   *
+   */
+  defaultIconPack?: string;
 }
 /**
  * The object containing configurations specific for radar diagrams.
