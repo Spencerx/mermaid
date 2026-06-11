@@ -30,6 +30,7 @@ const styles: DiagramStylesProvider = ({
     .treeView-node-label {
         font-size: ${labelFontSize};
         fill: ${labelColor};
+        white-space: pre;
     }
     .treeView-node-dir {
         font-weight: bold;
@@ -44,6 +45,7 @@ const styles: DiagramStylesProvider = ({
         font-size: ${labelFontSize};
         fill: ${descriptionColor};
         font-style: italic;
+        white-space: pre;
     }
     .treeView-highlight-bg {
         fill: ${highlightBg};

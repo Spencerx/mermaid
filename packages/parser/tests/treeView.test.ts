@@ -130,6 +130,24 @@ describe('TreeView Parser', () => {
       expect(result.value.nodes[0].classAnnotation).toBe('my-class');
     });
 
+    it('should preserve consecutive spaces in quoted names', () => {
+      const result = parse('treeView-beta\n"But  _  _ton💓.tsx"');
+      expectNoErrorsOrAlternatives(result);
+      expect(result.value.nodes[0].name).toBe('But  _  _ton💓.tsx');
+    });
+
+    it('should preserve consecutive spaces in bare names', () => {
+      const result = parse('treeView-beta\nBut  _  _ton💓.tsx');
+      expectNoErrorsOrAlternatives(result);
+      expect(result.value.nodes[0].name).toBe('But  _  _ton💓.tsx');
+    });
+
+    it('should trim trailing whitespace from bare names', () => {
+      const result = parse('treeView-beta\nindex.js  ');
+      expectNoErrorsOrAlternatives(result);
+      expect(result.value.nodes[0].name).toBe('index.js');
+    });
+
     it('should extract icon name from ICON_ANNOTATION', () => {
       const result = parse('treeView-beta\ndata.bin icon(folder)');
       expectNoErrorsOrAlternatives(result);

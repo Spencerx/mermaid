@@ -175,6 +175,22 @@ describe('treeView parser integration', () => {
       expect(node.icon).toBe('file');
       expect(node.description).toBe('some description');
     });
+
+    it('should preserve consecutive spaces and unicode in bare names', async () => {
+      const node = await parseAndGetNode('But  _  _ton💓.tsx');
+      expect(node.name).toBe('But  _  _ton💓.tsx');
+      expect(node.nodeType).toBe('file');
+    });
+
+    it('should preserve consecutive spaces and unicode in quoted names', async () => {
+      const node = await parseAndGetNode('"But  _  _ton💓.tsx"');
+      expect(node.name).toBe('But  _  _ton💓.tsx');
+    });
+
+    it('should trim trailing whitespace from bare names', async () => {
+      const node = await parseAndGetNode('index.js  ');
+      expect(node.name).toBe('index.js');
+    });
   });
 
   describe('default icons', () => {

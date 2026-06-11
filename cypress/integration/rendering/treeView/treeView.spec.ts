@@ -143,6 +143,30 @@ treeView-beta
     );
   });
 
+  it('should preserve consecutive spaces and unicode in labels', () => {
+    imgSnapshotTest(
+      `treeView-beta
+            src/
+                But  _  _ton💓.tsx
+                index.js`
+    );
+  });
+
+  it('should render emoji as icons when built-in icons are hidden', () => {
+    imgSnapshotTest(
+      `---
+config:
+  treeView:
+    showIcons: false
+---
+treeView-beta
+            🚀 rocket-app/
+                📦 packages/
+                    🎨 ui/
+                📝 README.md`
+    );
+  });
+
   it('should render combined annotations', () => {
     imgSnapshotTest(
       `treeView-beta

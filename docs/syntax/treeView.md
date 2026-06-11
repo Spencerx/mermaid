@@ -255,6 +255,42 @@ treeView-beta
         "parser"
 ```
 
+Unicode and emoji in labels:
+
+Labels are rendered exactly as written — unicode characters and consecutive spaces are preserved. Emoji make handy inline icons; combine them with `showIcons: false` to use them in place of the built-in icons:
+
+```mermaid-example
+---
+config:
+  treeView:
+    showIcons: false
+---
+treeView-beta
+    🚀 rocket-app/
+        📦 packages/
+            🎨 ui/
+            🛠️ utils/
+        🧪 tests/
+        📝 README.md
+        ⚙️ config.yaml
+```
+
+```mermaid
+---
+config:
+  treeView:
+    showIcons: false
+---
+treeView-beta
+    🚀 rocket-app/
+        📦 packages/
+            🎨 ui/
+            🛠️ utils/
+        🧪 tests/
+        📝 README.md
+        ⚙️ config.yaml
+```
+
 With custom config:
 
 ```mermaid-example
