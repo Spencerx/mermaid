@@ -107,7 +107,6 @@ Qcontrolx
 QSTR
 raykov
 Raykov
-reactts
 readmodel
 reinit
 rels

@@ -42,24 +42,24 @@ describe('icons', () => {
     });
 
     it('matches exact filenames from filenameIcons', () => {
-      expect(
-        detectIcon('Dockerfile', config({ filenameIcons: { Dockerfile: 'file-type-docker' } }))
-      ).toBe('file-type-docker');
+      expect(detectIcon('Dockerfile', config({ filenameIcons: { Dockerfile: 'docker' } }))).toBe(
+        'docker'
+      );
     });
 
     it('matches extensions from extensionIcons, with or without the leading dot', () => {
-      expect(
-        detectIcon('utils.ts', config({ extensionIcons: { '.ts': 'file-type-typescript' } }))
-      ).toBe('file-type-typescript');
-      expect(
-        detectIcon('utils.ts', config({ extensionIcons: { ts: 'file-type-typescript' } }))
-      ).toBe('file-type-typescript');
+      expect(detectIcon('utils.ts', config({ extensionIcons: { '.ts': 'typescript' } }))).toBe(
+        'typescript'
+      );
+      expect(detectIcon('utils.ts', config({ extensionIcons: { ts: 'typescript' } }))).toBe(
+        'typescript'
+      );
     });
 
     it('matches extensions case-insensitively', () => {
-      expect(
-        detectIcon('APP.TS', config({ extensionIcons: { '.ts': 'file-type-typescript' } }))
-      ).toBe('file-type-typescript');
+      expect(detectIcon('APP.TS', config({ extensionIcons: { '.ts': 'typescript' } }))).toBe(
+        'typescript'
+      );
     });
 
     it('filename matches beat extension matches', () => {
@@ -67,25 +67,22 @@ describe('icons', () => {
         detectIcon(
           'tsconfig.json',
           config({
-            filenameIcons: { 'tsconfig.json': 'file-type-tsconfig' },
-            extensionIcons: { '.json': 'file-type-json' },
+            filenameIcons: { 'tsconfig.json': 'tsconfig' },
+            extensionIcons: { '.json': 'json' },
           })
         )
-      ).toBe('file-type-tsconfig');
+      ).toBe('tsconfig');
     });
 
     it('uses the last extension for multi-dot names', () => {
       expect(
-        detectIcon(
-          'component.spec.ts',
-          config({ extensionIcons: { '.ts': 'file-type-typescript' } })
-        )
-      ).toBe('file-type-typescript');
+        detectIcon('component.spec.ts', config({ extensionIcons: { '.ts': 'typescript' } }))
+      ).toBe('typescript');
     });
 
     it('does not extension-match dotfiles', () => {
       expect(
-        detectIcon('.bashrc', config({ extensionIcons: { bashrc: 'file-type-shell' } }))
+        detectIcon('.bashrc', config({ extensionIcons: { bashrc: 'console' } }))
       ).toBeUndefined();
     });
   });
@@ -149,11 +146,11 @@ describe('icons', () => {
             file('utils.ts'),
             config({
               showIcons: true,
-              defaultIconPack: 'vscode-icons',
-              extensionIcons: { '.ts': 'file-type-typescript' },
+              defaultIconPack: 'material-icon-theme',
+              extensionIcons: { '.ts': 'typescript' },
             })
           )
-        ).toBe('vscode-icons:file-type-typescript');
+        ).toBe('material-icon-theme:typescript');
       });
 
       it('uses prefixed map values as-is, even without a defaultIconPack', () => {
@@ -189,7 +186,7 @@ describe('icons', () => {
             file('notes.txt'),
             config({
               showIcons: true,
-              defaultIconPack: 'vscode-icons',
+              defaultIconPack: 'material-icon-theme',
               filenameIcons: { 'notes.txt': 'folder' },
             })
           )
@@ -200,7 +197,7 @@ describe('icons', () => {
         expect(
           getNodeIcon(
             file('data.xyz'),
-            config({ showIcons: true, extensionIcons: { '.ts': 'file-type-typescript' } })
+            config({ showIcons: true, extensionIcons: { '.ts': 'typescript' } })
           )
         ).toBe('mermaid-treeview:file');
       });

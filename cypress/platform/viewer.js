@@ -141,21 +141,21 @@ const contentLoaded = async function () {
       width: 80,
       height: 80,
     };
-    // Simplified stand-in for the iconify vscode-icons pack, for deterministic
-    // treeView auto-detection tests (icon names match real vscode-icons ids)
-    const staticVscodeIconsPack = {
-      prefix: 'vscode-icons',
+    // Simplified stand-in for the iconify material-icon-theme pack, for
+    // deterministic treeView icon tests (icon names match real material ids)
+    const staticMaterialIconPack = {
+      prefix: 'material-icon-theme',
       icons: {
-        'file-type-typescript': {
+        typescript: {
           body: '<rect width="24" height="24" rx="3" fill="#3178c6"/><text x="12" y="17" text-anchor="middle" font-family="monospace" font-size="11" fill="#fff">TS</text>',
         },
-        'file-type-js': {
+        javascript: {
           body: '<rect width="24" height="24" rx="3" fill="#f7df1e"/><text x="12" y="17" text-anchor="middle" font-family="monospace" font-size="11" fill="#000">JS</text>',
         },
-        'file-type-python': {
+        python: {
           body: '<rect width="24" height="24" rx="3" fill="#3776ab"/><text x="12" y="17" text-anchor="middle" font-family="monospace" font-size="11" fill="#fff">PY</text>',
         },
-        'file-type-npm': {
+        nodejs: {
           body: '<rect width="24" height="24" rx="3" fill="#cb3837"/><text x="12" y="17" text-anchor="middle" font-family="monospace" font-size="9" fill="#fff">npm</text>',
         },
       },
@@ -176,8 +176,8 @@ const contentLoaded = async function () {
         loader: () => staticAwsIconPack,
       },
       {
-        name: 'vscode-icons',
-        loader: () => staticVscodeIconsPack,
+        name: 'material-icon-theme',
+        loader: () => staticMaterialIconPack,
       },
     ]);
     await mermaid.run();

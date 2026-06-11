@@ -59,12 +59,12 @@ treeView-beta
 config:
   treeView:
     showIcons: true
-    defaultIconPack: vscode-icons
+    defaultIconPack: material-icon-theme
     filenameIcons:
-      Dockerfile: file-type-docker
+      Dockerfile: docker
     extensionIcons:
-      .ts: file-type-typescript
-      .tsx: file-type-reactts
+      .ts: typescript
+      .tsx: react-ts
       .txt: none
 ---
 treeView-beta

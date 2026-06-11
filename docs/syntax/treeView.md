@@ -184,19 +184,19 @@ treeView-beta
 
 #### File-type icons via config maps
 
-Mermaid ships no filename/extension mapping — file-type icons are fully user-configured through the `filenameIcons` and `extensionIcons` config options, using icons from a registered [icon pack](../config/icons.md) such as [vscode-icons](https://icon-sets.iconify.design/vscode-icons/). Values are resolved like `icon()` references — `pack:name` is used as-is, unprefixed names resolve via `defaultIconPack`, and `none` hides the icon for matching files. Directories and unmapped files keep the built-in `folder`/`file` icons:
+Mermaid ships no filename/extension mapping — file-type icons are fully user-configured through the `filenameIcons` and `extensionIcons` config options, using icons from a registered [icon pack](../config/icons.md) such as [material-icon-theme](https://icon-sets.iconify.design/material-icon-theme/). Values are resolved like `icon()` references — `pack:name` is used as-is, unprefixed names resolve via `defaultIconPack`, and `none` hides the icon for matching files. Directories and unmapped files keep the built-in `folder`/`file` icons:
 
 ```mermaid-example
 ---
 config:
   treeView:
     showIcons: true
-    defaultIconPack: vscode-icons
+    defaultIconPack: material-icon-theme
     filenameIcons:
-      Dockerfile: file-type-docker
+      Dockerfile: docker
     extensionIcons:
-      .ts: file-type-typescript
-      .tsx: file-type-reactts
+      .ts: typescript
+      .tsx: react-ts
       .txt: none
 ---
 treeView-beta
@@ -213,12 +213,12 @@ treeView-beta
 config:
   treeView:
     showIcons: true
-    defaultIconPack: vscode-icons
+    defaultIconPack: material-icon-theme
     filenameIcons:
-      Dockerfile: file-type-docker
+      Dockerfile: docker
     extensionIcons:
-      .ts: file-type-typescript
-      .tsx: file-type-reactts
+      .ts: typescript
+      .tsx: react-ts
       .txt: none
 ---
 treeView-beta
@@ -250,7 +250,7 @@ treeView-beta
     package.json
 ```
 
-When `defaultIconPack` is set, unprefixed names resolve in that pack — `icon(file-type-rust)` becomes shorthand for `icon(vscode-icons:file-type-rust)`. The built-in `file` and `folder` icons can always be referenced without a prefix, e.g. `icon(folder)`.
+When `defaultIconPack` is set, unprefixed names resolve in that pack — `icon(rust)` becomes shorthand for `icon(material-icon-theme:rust)`. The built-in `file` and `folder` icons can always be referenced without a prefix, e.g. `icon(folder)`.
 
 > **Note**
 > Icon packs are not bundled with Mermaid — they must be registered with `registerIconPacks` by the site embedding the diagram. See [registering icon packs](../config/icons.md). An unregistered icon renders as a question mark.

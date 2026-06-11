@@ -141,12 +141,12 @@ my-project/
 config:
   treeView:
     showIcons: true
-    defaultIconPack: vscode-icons
+    defaultIconPack: material-icon-theme
     filenameIcons:
-      Dockerfile: file-type-docker
+      Dockerfile: docker
     extensionIcons:
-      .ts: file-type-typescript
-      .tsx: file-type-reactts
+      .ts: typescript
+      .tsx: react-ts
       .txt: none
 ---
 treeView-beta
@@ -289,9 +289,9 @@ treeView-beta
             fetch('https://unpkg.com/@iconify-json/logos/icons.json').then((res) => res.json()),
         },
         {
-          name: 'vscode-icons',
+          name: 'material-icon-theme',
           loader: () =>
-            fetch('https://unpkg.com/@iconify-json/vscode-icons/icons.json').then((res) =>
+            fetch('https://unpkg.com/@iconify-json/material-icon-theme/icons.json').then((res) =>
               res.json()
             ),
         },

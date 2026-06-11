@@ -1831,7 +1831,7 @@ export interface TreeViewDiagramConfig extends BaseDiagramConfig {
   /**
    * Exact-filename → icon map used to pick a file's icon when
    * `showIcons` is enabled, e.g.
-   * `{ "Dockerfile": "vscode-icons:file-type-docker" }`.
+   * `{ "Dockerfile": "material-icon-theme:docker" }`.
    * Values are resolved like `icon()` references: `pack:name` is used
    * as-is, unprefixed names resolve via `defaultIconPack`, and `none`
    * hides the icon for matching files.
@@ -1843,7 +1843,7 @@ export interface TreeViewDiagramConfig extends BaseDiagramConfig {
   /**
    * File-extension → icon map used to pick a file's icon when
    * `showIcons` is enabled, e.g.
-   * `{ ".ts": "vscode-icons:file-type-typescript" }`. Keys are
+   * `{ ".ts": "material-icon-theme:typescript" }`. Keys are
    * lowercase and may include or omit the leading dot.
    * Values are resolved like `icon()` references: `pack:name` is used
    * as-is, unprefixed names resolve via `defaultIconPack`, and `none`
