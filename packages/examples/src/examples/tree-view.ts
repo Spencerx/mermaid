@@ -53,26 +53,7 @@ treeView-beta
             package.json`,
     },
     {
-      title: 'Automatic File-Type Icons',
-      isDefault: false,
-      code: `---
-config:
-  treeView:
-    showIcons: true
-    defaultIconPack: vscode-icons
----
-treeView-beta
-            my-project/
-                src/
-                    App.tsx
-                    main.py
-                    index.html
-                Dockerfile
-                package.json
-                README.md`,
-    },
-    {
-      title: 'Custom Icon Mappings',
+      title: 'File-Type Icons via Config Maps',
       isDefault: false,
       code: `---
 config:
@@ -80,17 +61,20 @@ config:
     showIcons: true
     defaultIconPack: vscode-icons
     filenameIcons:
-      Makefile: file-type-cmake
+      Dockerfile: file-type-docker
     extensionIcons:
-      .tf: file-type-terraform
+      .ts: file-type-typescript
+      .tsx: file-type-reactts
       .txt: none
 ---
 treeView-beta
-            infra/
-                main.tf
-                Makefile
-            notes.txt
-            README.md`,
+            my-project/
+                src/
+                    App.tsx
+                    utils.ts
+                Dockerfile
+                notes.txt
+                README.md`,
     },
     {
       title: 'Unicode Icons in Filenames',

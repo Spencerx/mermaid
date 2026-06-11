@@ -132,7 +132,7 @@ my-project/
       </div>
     </div>
 
-    <h2>Automatic File-Type Icons (defaultIconPack)</h2>
+    <h2>File-Type Icons via Config Maps</h2>
     <div class="demo">
       <pre class="source"></pre>
       <div class="rendered">
@@ -142,16 +142,20 @@ config:
   treeView:
     showIcons: true
     defaultIconPack: vscode-icons
+    filenameIcons:
+      Dockerfile: file-type-docker
+    extensionIcons:
+      .ts: file-type-typescript
+      .tsx: file-type-reactts
+      .txt: none
 ---
 treeView-beta
 my-project/
     src/
         App.tsx
-        main.py
-        index.html
-        notes.txt
+        utils.ts
     Dockerfile
-    package.json
+    notes.txt
     README.md
 </pre
         >

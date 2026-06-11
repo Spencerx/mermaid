@@ -116,28 +116,9 @@ treeView-beta
     package.json
 ```
 
-#### Automatic file-type icons
+#### File-type icons via config maps
 
-Set `defaultIconPack` to the name of a registered [icon pack](../config/icons.md) to auto-detect file-type icons from filenames and extensions — `App.tsx` gets the `file-type-reactts` icon, `main.py` gets `file-type-python`, `Dockerfile` gets `file-type-docker`, and so on. The detected icon names are aligned with the [vscode-icons](https://icon-sets.iconify.design/vscode-icons/) pack. Directories and unrecognized files keep the built-in `folder`/`file` icons:
-
-```mermaid-example
----
-config:
-  treeView:
-    showIcons: true
-    defaultIconPack: vscode-icons
----
-treeView-beta
-    src/
-        App.tsx
-        main.py
-        index.html
-        notes.txt
-    Dockerfile
-    package.json
-```
-
-The detection maps can be extended or overridden with the `filenameIcons` and `extensionIcons` config options. Values are resolved like `icon()` references — `pack:name` is used as-is, unprefixed names resolve via `defaultIconPack`, and `none` disables the icon for matching files:
+Mermaid ships no filename/extension mapping — file-type icons are fully user-configured through the `filenameIcons` and `extensionIcons` config options, using icons from a registered [icon pack](../config/icons.md) such as [vscode-icons](https://icon-sets.iconify.design/vscode-icons/). Values are resolved like `icon()` references — `pack:name` is used as-is, unprefixed names resolve via `defaultIconPack`, and `none` hides the icon for matching files. Directories and unmapped files keep the built-in `folder`/`file` icons:
 
 ```mermaid-example
 ---
@@ -146,15 +127,17 @@ config:
     showIcons: true
     defaultIconPack: vscode-icons
     filenameIcons:
-      Makefile: file-type-cmake
+      Dockerfile: file-type-docker
     extensionIcons:
-      .tf: file-type-terraform
+      .ts: file-type-typescript
+      .tsx: file-type-reactts
       .txt: none
 ---
 treeView-beta
-    infra/
-        main.tf
-        Makefile
+    src/
+        App.tsx
+        utils.ts
+    Dockerfile
     notes.txt
     README.md
 ```
@@ -270,16 +253,16 @@ treeView-beta
 
 ## Config Variables
 
-| Property        | Description                                                                             | Default Value |
-| --------------- | --------------------------------------------------------------------------------------- | ------------- |
-| rowIndent       | Indentation for each row                                                                | 10            |
-| paddingX        | Horizontal padding of row                                                               | 5             |
-| paddingY        | Vertical padding of row                                                                 | 5             |
-| lineThickness   | Thickness of the line                                                                   | 1             |
-| showIcons       | Whether to show the default file/folder icons (explicit `icon()` always renders)        | false         |
-| defaultIconPack | Registered iconify pack used for auto-detected icons and unprefixed `icon()` references | ''            |
-| filenameIcons   | Filename → icon additions/overrides for auto-detection                                  | {}            |
-| extensionIcons  | Extension → icon additions/overrides for auto-detection                                 | {}            |
+| Property        | Description                                                                      | Default Value |
+| --------------- | -------------------------------------------------------------------------------- | ------------- |
+| rowIndent       | Indentation for each row                                                         | 10            |
+| paddingX        | Horizontal padding of row                                                        | 5             |
+| paddingY        | Vertical padding of row                                                          | 5             |
+| lineThickness   | Thickness of the line                                                            | 1             |
+| showIcons       | Whether to show the default file/folder icons (explicit `icon()` always renders) | false         |
+| defaultIconPack | Registered iconify pack used to resolve unprefixed icon references               | ''            |
+| filenameIcons   | Filename → icon map for file-type icons                                          | {}            |
+| extensionIcons  | Extension → icon map for file-type icons                                         | {}            |
 
 ### Theme Variables
 

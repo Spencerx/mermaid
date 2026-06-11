@@ -130,25 +130,7 @@ treeView-beta
     );
   });
 
-  it('should auto-detect file-type icons with showIcons and defaultIconPack', () => {
-    imgSnapshotTest(
-      `---
-config:
-  treeView:
-    showIcons: true
-    defaultIconPack: vscode-icons
----
-treeView-beta
-            src/
-                App.ts
-                index.js
-                main.py
-                data.xyz
-            package.json`
-    );
-  });
-
-  it('should apply filenameIcons and extensionIcons detection overrides', () => {
+  it('should pick file icons from the filenameIcons and extensionIcons config maps', () => {
     imgSnapshotTest(
       `---
 config:
@@ -158,6 +140,7 @@ config:
     filenameIcons:
       README.md: 'fa:bell'
     extensionIcons:
+      .ts: file-type-typescript
       .py: none
       .xyz: file-type-js
 ---
@@ -166,6 +149,7 @@ treeView-beta
                 main.py
                 data.xyz
                 index.ts
+                unmapped.bin
             README.md`
     );
   });

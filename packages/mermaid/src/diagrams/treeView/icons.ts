@@ -6,9 +6,9 @@ import type { NodeType } from './types.js';
  *
  * Contains only the two default icons (file and folder), drawn as original
  * shapes for this project. Any other icon must come from a user-registered
- * iconify pack (see `registerIconPacks`, e.g. `vscode-icons`) and is
- * referenced from the diagram text as `icon(pack:name)`, or as `icon(name)`
- * together with the `defaultIconPack` config option.
+ * iconify pack (see `registerIconPacks`) and is referenced from the diagram
+ * text as `icon(pack:name)`, or as `icon(name)` together with the
+ * `defaultIconPack` config option.
  *
  * Icons use `currentColor` so they can be themed via CSS `color`.
  */
@@ -26,105 +26,22 @@ export const treeViewIcons: IconifyJSON = {
   },
 };
 
-/**
- * Auto-detection maps for file-type icons.
- * Icon names are aligned with the iconify `vscode-icons` pack, so setting
- * `defaultIconPack: 'vscode-icons'` resolves them directly — but any
- * registered pack using the same names works.
- */
-
-// Known filenames → icon name (checked before the extension)
-const FILENAME_ICONS: Record<string, string> = {
-  Dockerfile: 'file-type-docker',
-  'docker-compose.yml': 'file-type-docker',
-  'docker-compose.yaml': 'file-type-docker',
-  '.dockerignore': 'file-type-docker',
-  '.gitignore': 'file-type-git',
-  '.gitattributes': 'file-type-git',
-  '.gitmodules': 'file-type-git',
-  'package.json': 'file-type-npm',
-  'package-lock.json': 'file-type-npm',
-  'yarn.lock': 'file-type-yarn',
-  'tsconfig.json': 'file-type-tsconfig',
-  '.eslintrc': 'file-type-eslint',
-  '.eslintrc.js': 'file-type-eslint',
-  '.eslintrc.json': 'file-type-eslint',
-  'eslint.config.js': 'file-type-eslint',
-  'eslint.config.mjs': 'file-type-eslint',
-  '.babelrc': 'file-type-babel',
-  'webpack.config.js': 'file-type-webpack',
-  'vite.config.js': 'file-type-vite',
-  'vite.config.ts': 'file-type-vite',
-};
-
-// Extension → icon name
-const EXTENSION_ICONS: Record<string, string> = {
-  '.js': 'file-type-js',
-  '.mjs': 'file-type-js',
-  '.cjs': 'file-type-js',
-  '.jsx': 'file-type-reactjs',
-  '.tsx': 'file-type-reactts',
-  '.ts': 'file-type-typescript',
-  '.mts': 'file-type-typescript',
-  '.cts': 'file-type-typescript',
-  '.py': 'file-type-python',
-  '.rb': 'file-type-ruby',
-  '.rs': 'file-type-rust',
-  '.go': 'file-type-go',
-  '.java': 'file-type-java',
-  '.cs': 'file-type-csharp',
-  '.cpp': 'file-type-cpp',
-  '.cc': 'file-type-cpp',
-  '.hpp': 'file-type-cpp',
-  '.c': 'file-type-c',
-  '.h': 'file-type-c',
-  '.json': 'file-type-json',
-  '.yaml': 'file-type-yaml',
-  '.yml': 'file-type-yaml',
-  '.xml': 'file-type-xml',
-  '.html': 'file-type-html',
-  '.htm': 'file-type-html',
-  '.css': 'file-type-css',
-  '.scss': 'file-type-scss',
-  '.sass': 'file-type-sass',
-  '.md': 'file-type-markdown',
-  '.mdx': 'file-type-markdown',
-  '.sh': 'file-type-shell',
-  '.bash': 'file-type-shell',
-  '.zsh': 'file-type-shell',
-  '.vue': 'file-type-vue',
-  '.svelte': 'file-type-svelte',
-  '.php': 'file-type-php',
-  '.kt': 'file-type-kotlin',
-  '.kts': 'file-type-kotlin',
-  '.swift': 'file-type-swift',
-  '.dart': 'file-type-dartlang',
-  '.lua': 'file-type-lua',
-  '.pl': 'file-type-perl',
-  '.hs': 'file-type-haskell',
-  '.scala': 'file-type-scala',
-  '.ex': 'file-type-elixir',
-  '.exs': 'file-type-elixir',
-  '.r': 'file-type-r',
-  '.graphql': 'file-type-graphql',
-  '.gql': 'file-type-graphql',
-};
-
 interface IconDetectionConfig {
-  /** Exact-filename → icon additions/overrides, merged over the built-in map */
+  /** Exact-filename → icon map used to pick file icons when `showIcons` is enabled */
   filenameIcons?: Record<string, string>;
-  /** Extension → icon additions/overrides (keys with or without leading dot), merged over the built-in map */
+  /** Extension → icon map (lowercase keys, with or without leading dot) */
   extensionIcons?: Record<string, string>;
 }
 
 /**
- * Detect a file-type icon name from a filename.
- * Filename matches (user-configured, then built-in) win over extension
- * matches (user-configured, then built-in); extensions match
- * case-insensitively. Returns `undefined` when nothing matches.
+ * Detect a file-type icon name from the user-configured maps.
+ * There is no built-in mapping — without `filenameIcons`/`extensionIcons`
+ * config, files get the built-in `file` icon. Filename matches win over
+ * extension matches; extensions match case-insensitively.
+ * Returns `undefined` when nothing matches.
  */
 export function detectIcon(name: string, config?: IconDetectionConfig): string | undefined {
-  const filenameIcon = config?.filenameIcons?.[name] ?? FILENAME_ICONS[name];
+  const filenameIcon = config?.filenameIcons?.[name];
   if (filenameIcon) {
     return filenameIcon;
   }
@@ -132,7 +49,7 @@ export function detectIcon(name: string, config?: IconDetectionConfig): string |
   if (dotIdx > 0) {
     const ext = name.substring(dotIdx).toLowerCase();
     const extensionIcons = config?.extensionIcons;
-    return extensionIcons?.[ext] ?? extensionIcons?.[ext.slice(1)] ?? EXTENSION_ICONS[ext];
+    return extensionIcons?.[ext] ?? extensionIcons?.[ext.slice(1)];
   }
   return undefined;
 }
@@ -152,10 +69,10 @@ function qualifyIcon(icon: string, defaultIconPack: string): string {
  * Resolve the (fully-qualified) iconify reference to render for a node.
  *
  * An explicit `icon()` annotation always wins (with `none` hiding the icon);
- * otherwise, when `showIcons` is enabled, the icon is auto-detected from the
- * filename (unprefixed detected names require `defaultIconPack`), falling
- * back to the built-in file/folder icon. Returns `undefined` when no icon
- * should be rendered.
+ * otherwise, when `showIcons` is enabled, files are matched against the
+ * user-configured `filenameIcons`/`extensionIcons` maps, falling back to the
+ * built-in file/folder icon. Returns `undefined` when no icon should be
+ * rendered.
  */
 export function getNodeIcon(
   node: { icon?: string; name: string; nodeType: NodeType },
@@ -176,17 +93,7 @@ export function getNodeIcon(
       return undefined;
     }
     if (detected) {
-      if (detected.includes(':')) {
-        return detected;
-      }
-      if (detected in treeViewIcons.icons) {
-        return `${treeViewIcons.prefix}:${detected}`;
-      }
-      if (config.defaultIconPack) {
-        return `${config.defaultIconPack}:${detected}`;
-      }
-      // unprefixed detection result without a pack to resolve it in —
-      // fall through to the built-in default
+      return qualifyIcon(detected, config.defaultIconPack);
     }
   }
   return `${treeViewIcons.prefix}:${node.nodeType === 'directory' ? 'folder' : 'file'}`;

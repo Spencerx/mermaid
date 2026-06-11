@@ -1815,42 +1815,39 @@ export interface TreeViewDiagramConfig extends BaseDiagramConfig {
   lineThickness?: number;
   /**
    * Whether to show the default file/folder icons next to labels.
-   * When `defaultIconPack` is also set, file icons are auto-detected
-   * from the filename/extension.
    * Explicit `icon()` annotations always render, regardless of this setting.
    *
    */
   showIcons?: boolean;
   /**
    * Name of a registered iconify pack used to resolve unprefixed icon
-   * references — both auto-detected file-type icons and `icon(name)`
-   * annotations without a `pack:` prefix. The auto-detected icon names
-   * are aligned with the `vscode-icons` pack. The pack must be registered
-   * with `registerIconPacks`. When empty, auto-detection is disabled
-   * and unprefixed names resolve to the built-in file/folder icons.
+   * references — `icon(name)` annotations and `filenameIcons`/
+   * `extensionIcons` values without a `pack:` prefix. The pack must be
+   * registered with `registerIconPacks`. When empty, unprefixed names
+   * resolve to the built-in file/folder icons.
    *
    */
   defaultIconPack?: string;
   /**
-   * Additions/overrides for the exact-filename → icon mapping used by
-   * automatic icon detection, e.g. `{ "Makefile": "cmake" }`.
+   * Exact-filename → icon map used to pick a file's icon when
+   * `showIcons` is enabled, e.g.
+   * `{ "Dockerfile": "vscode-icons:file-type-docker" }`.
    * Values are resolved like `icon()` references: `pack:name` is used
    * as-is, unprefixed names resolve via `defaultIconPack`, and `none`
-   * disables the icon for matching files.
-   * Entries take precedence over the built-in mapping.
+   * hides the icon for matching files.
    *
    */
   filenameIcons?: {
     [k: string]: string;
   };
   /**
-   * Additions/overrides for the file-extension → icon mapping used by
-   * automatic icon detection, e.g. `{ ".zig": "zig" }`. Keys are
+   * File-extension → icon map used to pick a file's icon when
+   * `showIcons` is enabled, e.g.
+   * `{ ".ts": "vscode-icons:file-type-typescript" }`. Keys are
    * lowercase and may include or omit the leading dot.
    * Values are resolved like `icon()` references: `pack:name` is used
    * as-is, unprefixed names resolve via `defaultIconPack`, and `none`
-   * disables the icon for matching files.
-   * Entries take precedence over the built-in mapping.
+   * hides the icon for matching files.
    *
    */
   extensionIcons?: {
