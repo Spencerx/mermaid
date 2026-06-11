@@ -118,14 +118,14 @@ treeView-beta
 
 #### Automatic file-type icons
 
-Set `defaultIconPack` to the name of a registered [icon pack](../config/icons.md) to auto-detect file-type icons from filenames and extensions — `App.tsx` gets the `react` icon, `main.py` gets `python`, `Dockerfile` gets `docker`, and so on. The detected icon names are aligned with the [devicon](https://icon-sets.iconify.design/devicon/) pack. Directories and unrecognized files keep the built-in `folder`/`file` icons:
+Set `defaultIconPack` to the name of a registered [icon pack](../config/icons.md) to auto-detect file-type icons from filenames and extensions — `App.tsx` gets the `file-type-reactts` icon, `main.py` gets `file-type-python`, `Dockerfile` gets `file-type-docker`, and so on. The detected icon names are aligned with the [vscode-icons](https://icon-sets.iconify.design/vscode-icons/) pack. Directories and unrecognized files keep the built-in `folder`/`file` icons:
 
 ```mermaid-example
 ---
 config:
   treeView:
     showIcons: true
-    defaultIconPack: devicon
+    defaultIconPack: vscode-icons
 ---
 treeView-beta
     src/
@@ -144,11 +144,11 @@ The detection maps can be extended or overridden with the `filenameIcons` and `e
 config:
   treeView:
     showIcons: true
-    defaultIconPack: devicon
+    defaultIconPack: vscode-icons
     filenameIcons:
-      Makefile: cmake
+      Makefile: file-type-cmake
     extensionIcons:
-      .tf: terraform
+      .tf: file-type-terraform
       .txt: none
 ---
 treeView-beta
@@ -171,7 +171,7 @@ treeView-beta
     package.json
 ```
 
-When `defaultIconPack` is set, unprefixed names resolve in that pack — `icon(react)` becomes shorthand for `icon(devicon:react)`. The built-in `file` and `folder` icons can always be referenced without a prefix, e.g. `icon(folder)`.
+When `defaultIconPack` is set, unprefixed names resolve in that pack — `icon(file-type-rust)` becomes shorthand for `icon(vscode-icons:file-type-rust)`. The built-in `file` and `folder` icons can always be referenced without a prefix, e.g. `icon(folder)`.
 
 ```note
 Icon packs are not bundled with Mermaid — they must be registered with `registerIconPacks` by the site embedding the diagram. See [registering icon packs](../config/icons.md). An unregistered icon renders as a question mark.

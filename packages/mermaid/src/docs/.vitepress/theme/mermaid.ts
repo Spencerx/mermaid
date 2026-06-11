@@ -15,9 +15,9 @@ mermaid.registerIconPacks([
       fetch('https://unpkg.com/@iconify-json/logos/icons.json').then((res) => res.json()),
   },
   {
-    name: 'devicon',
+    name: 'vscode-icons',
     loader: () =>
-      fetch('https://unpkg.com/@iconify-json/devicon/icons.json').then((res) => res.json()),
+      fetch('https://unpkg.com/@iconify-json/vscode-icons/icons.json').then((res) => res.json()),
   },
 ]);
 

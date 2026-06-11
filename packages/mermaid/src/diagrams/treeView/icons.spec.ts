@@ -35,34 +35,35 @@ describe('icons', () => {
   });
 
   describe('detectIcon', () => {
-    it('detects devicon-aligned icons from extensions', () => {
-      expect(detectIcon('utils.ts')).toBe('typescript');
-      expect(detectIcon('App.tsx')).toBe('react');
-      expect(detectIcon('main.py')).toBe('python');
-      expect(detectIcon('index.html')).toBe('html5');
-      expect(detectIcon('styles.css')).toBe('css3');
-      expect(detectIcon('main.cpp')).toBe('cplusplus');
-      expect(detectIcon('App.vue')).toBe('vuejs');
-      expect(detectIcon('server.js')).toBe('javascript');
+    it('detects vscode-icons-aligned icons from extensions', () => {
+      expect(detectIcon('utils.ts')).toBe('file-type-typescript');
+      expect(detectIcon('App.tsx')).toBe('file-type-reactts');
+      expect(detectIcon('App.jsx')).toBe('file-type-reactjs');
+      expect(detectIcon('main.py')).toBe('file-type-python');
+      expect(detectIcon('index.html')).toBe('file-type-html');
+      expect(detectIcon('styles.css')).toBe('file-type-css');
+      expect(detectIcon('main.cpp')).toBe('file-type-cpp');
+      expect(detectIcon('App.vue')).toBe('file-type-vue');
+      expect(detectIcon('server.js')).toBe('file-type-js');
     });
 
     it('exact filename match beats the extension match', () => {
-      // tsconfig.json: filename → typescript, extension → json
-      expect(detectIcon('tsconfig.json')).toBe('typescript');
-      expect(detectIcon('package.json')).toBe('npm');
-      expect(detectIcon('docker-compose.yml')).toBe('docker');
-      expect(detectIcon('Dockerfile')).toBe('docker');
-      expect(detectIcon('.gitignore')).toBe('git');
-      expect(detectIcon('yarn.lock')).toBe('yarn');
+      // tsconfig.json: filename → tsconfig, extension → json
+      expect(detectIcon('tsconfig.json')).toBe('file-type-tsconfig');
+      expect(detectIcon('package.json')).toBe('file-type-npm');
+      expect(detectIcon('docker-compose.yml')).toBe('file-type-docker');
+      expect(detectIcon('Dockerfile')).toBe('file-type-docker');
+      expect(detectIcon('.gitignore')).toBe('file-type-git');
+      expect(detectIcon('yarn.lock')).toBe('file-type-yarn');
     });
 
     it('extension matching is case-insensitive', () => {
-      expect(detectIcon('APP.TS')).toBe('typescript');
-      expect(detectIcon('Main.PY')).toBe('python');
+      expect(detectIcon('APP.TS')).toBe('file-type-typescript');
+      expect(detectIcon('Main.PY')).toBe('file-type-python');
     });
 
     it('uses the last extension for multi-dot names', () => {
-      expect(detectIcon('component.spec.ts')).toBe('typescript');
+      expect(detectIcon('component.spec.ts')).toBe('file-type-typescript');
       expect(detectIcon('archive.tar.gz')).toBeUndefined();
     });
 
@@ -96,7 +97,7 @@ describe('icons', () => {
       it('built-in filename matches still beat user extension entries', () => {
         expect(
           detectIcon('tsconfig.json', config({ extensionIcons: { '.json': 'logos:json' } }))
-        ).toBe('typescript');
+        ).toBe('file-type-tsconfig');
       });
     });
   });
@@ -108,7 +109,10 @@ describe('icons', () => {
     it('returns undefined for none regardless of config', () => {
       expect(getNodeIcon(file('a.ts', 'none'), config())).toBeUndefined();
       expect(
-        getNodeIcon(dir('src', 'none'), config({ showIcons: true, defaultIconPack: 'devicon' }))
+        getNodeIcon(
+          dir('src', 'none'),
+          config({ showIcons: true, defaultIconPack: 'vscode-icons' })
+        )
       ).toBeUndefined();
     });
 
@@ -120,15 +124,15 @@ describe('icons', () => {
     });
 
     it('qualifies built-in names with the built-in pack, even when defaultIconPack is set', () => {
-      expect(getNodeIcon(file('a.ts', 'file'), config({ defaultIconPack: 'devicon' }))).toBe(
+      expect(getNodeIcon(file('a.ts', 'file'), config({ defaultIconPack: 'vscode-icons' }))).toBe(
         'mermaid-treeview:file'
       );
       expect(getNodeIcon(file('a.ts', 'folder'), config())).toBe('mermaid-treeview:folder');
     });
 
     it('qualifies unprefixed explicit icons with the defaultIconPack', () => {
-      expect(getNodeIcon(file('a.ts', 'react'), config({ defaultIconPack: 'devicon' }))).toBe(
-        'devicon:react'
+      expect(getNodeIcon(file('a.ts', 'react'), config({ defaultIconPack: 'vscode-icons' }))).toBe(
+        'vscode-icons:react'
       );
     });
 
@@ -139,21 +143,24 @@ describe('icons', () => {
 
     it('returns undefined without an explicit icon when showIcons is off', () => {
       expect(getNodeIcon(file('utils.ts'), config())).toBeUndefined();
-      expect(getNodeIcon(dir('src'), config({ defaultIconPack: 'devicon' }))).toBeUndefined();
+      expect(getNodeIcon(dir('src'), config({ defaultIconPack: 'vscode-icons' }))).toBeUndefined();
     });
 
     it('auto-detects file icons when showIcons is on and defaultIconPack is set', () => {
       expect(
-        getNodeIcon(file('utils.ts'), config({ showIcons: true, defaultIconPack: 'devicon' }))
-      ).toBe('devicon:typescript');
+        getNodeIcon(file('utils.ts'), config({ showIcons: true, defaultIconPack: 'vscode-icons' }))
+      ).toBe('vscode-icons:file-type-typescript');
       expect(
-        getNodeIcon(file('Dockerfile'), config({ showIcons: true, defaultIconPack: 'devicon' }))
-      ).toBe('devicon:docker');
+        getNodeIcon(
+          file('Dockerfile'),
+          config({ showIcons: true, defaultIconPack: 'vscode-icons' })
+        )
+      ).toBe('vscode-icons:file-type-docker');
     });
 
     it('falls back to the built-in file icon when detection misses', () => {
       expect(
-        getNodeIcon(file('data.xyz'), config({ showIcons: true, defaultIconPack: 'devicon' }))
+        getNodeIcon(file('data.xyz'), config({ showIcons: true, defaultIconPack: 'vscode-icons' }))
       ).toBe('mermaid-treeview:file');
     });
 
@@ -165,9 +172,9 @@ describe('icons', () => {
 
     it('directories always get the built-in folder icon when showIcons is on', () => {
       expect(getNodeIcon(dir('src'), config({ showIcons: true }))).toBe('mermaid-treeview:folder');
-      expect(getNodeIcon(dir('src'), config({ showIcons: true, defaultIconPack: 'devicon' }))).toBe(
-        'mermaid-treeview:folder'
-      );
+      expect(
+        getNodeIcon(dir('src'), config({ showIcons: true, defaultIconPack: 'vscode-icons' }))
+      ).toBe('mermaid-treeview:folder');
     });
 
     describe('detection map overrides', () => {
@@ -177,7 +184,7 @@ describe('icons', () => {
             file('notes.txt'),
             config({
               showIcons: true,
-              defaultIconPack: 'devicon',
+              defaultIconPack: 'vscode-icons',
               extensionIcons: { '.txt': 'none' },
             })
           )
@@ -197,14 +204,21 @@ describe('icons', () => {
         expect(
           getNodeIcon(
             file('main.zig'),
-            config({ showIcons: true, defaultIconPack: 'devicon', extensionIcons: { zig: 'zig' } })
+            config({
+              showIcons: true,
+              defaultIconPack: 'vscode-icons',
+              extensionIcons: { zig: 'file-type-zig' },
+            })
           )
-        ).toBe('devicon:zig');
+        ).toBe('vscode-icons:file-type-zig');
       });
 
       it('falls back to the built-in file icon for unprefixed override values without a defaultIconPack', () => {
         expect(
-          getNodeIcon(file('main.zig'), config({ showIcons: true, extensionIcons: { zig: 'zig' } }))
+          getNodeIcon(
+            file('main.zig'),
+            config({ showIcons: true, extensionIcons: { zig: 'file-type-zig' } })
+          )
         ).toBe('mermaid-treeview:file');
       });
 
@@ -214,7 +228,7 @@ describe('icons', () => {
             file('notes.txt'),
             config({
               showIcons: true,
-              defaultIconPack: 'devicon',
+              defaultIconPack: 'vscode-icons',
               filenameIcons: { 'notes.txt': 'folder' },
             })
           )

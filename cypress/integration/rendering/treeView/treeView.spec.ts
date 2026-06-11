@@ -136,7 +136,7 @@ treeView-beta
 config:
   treeView:
     showIcons: true
-    defaultIconPack: devicon
+    defaultIconPack: vscode-icons
 ---
 treeView-beta
             src/
@@ -154,12 +154,12 @@ treeView-beta
 config:
   treeView:
     showIcons: true
-    defaultIconPack: devicon
+    defaultIconPack: vscode-icons
     filenameIcons:
       README.md: 'fa:bell'
     extensionIcons:
       .py: none
-      .xyz: javascript
+      .xyz: file-type-js
 ---
 treeView-beta
             src/

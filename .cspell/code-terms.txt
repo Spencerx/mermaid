@@ -35,13 +35,13 @@ curv
 CYLINDEREND
 CYLINDERSTART
 DAGA
+dartlang
 datakey
 ddlt
 Ddlt
 DDLT
 DEND
 descr
-devicon
 distp
 distq
 divs
@@ -108,6 +108,8 @@ Qcontrolx
 QSTR
 raykov
 Raykov
+reactjs
+reactts
 readmodel
 reinit
 rels

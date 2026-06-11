@@ -59,7 +59,7 @@ treeView-beta
 config:
   treeView:
     showIcons: true
-    defaultIconPack: devicon
+    defaultIconPack: vscode-icons
 ---
 treeView-beta
             my-project/
@@ -78,11 +78,11 @@ treeView-beta
 config:
   treeView:
     showIcons: true
-    defaultIconPack: devicon
+    defaultIconPack: vscode-icons
     filenameIcons:
-      Makefile: cmake
+      Makefile: file-type-cmake
     extensionIcons:
-      .tf: terraform
+      .tf: file-type-terraform
       .txt: none
 ---
 treeView-beta

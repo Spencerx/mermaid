@@ -6,9 +6,9 @@ import type { NodeType } from './types.js';
  *
  * Contains only the two default icons (file and folder), drawn as original
  * shapes for this project. Any other icon must come from a user-registered
- * iconify pack (see `registerIconPacks`) and is referenced from the diagram
- * text as `icon(pack:name)`, or as `icon(name)` together with the
- * `defaultIconPack` config option.
+ * iconify pack (see `registerIconPacks`, e.g. `vscode-icons`) and is
+ * referenced from the diagram text as `icon(pack:name)`, or as `icon(name)`
+ * together with the `defaultIconPack` config option.
  *
  * Icons use `currentColor` so they can be themed via CSS `color`.
  */
@@ -28,86 +28,86 @@ export const treeViewIcons: IconifyJSON = {
 
 /**
  * Auto-detection maps for file-type icons.
- * Icon names are aligned with the iconify `devicon` pack, so setting
- * `defaultIconPack: 'devicon'` resolves them directly — but any registered
- * pack using the same names works.
+ * Icon names are aligned with the iconify `vscode-icons` pack, so setting
+ * `defaultIconPack: 'vscode-icons'` resolves them directly — but any
+ * registered pack using the same names works.
  */
 
 // Known filenames → icon name (checked before the extension)
 const FILENAME_ICONS: Record<string, string> = {
-  Dockerfile: 'docker',
-  'docker-compose.yml': 'docker',
-  'docker-compose.yaml': 'docker',
-  '.dockerignore': 'docker',
-  '.gitignore': 'git',
-  '.gitattributes': 'git',
-  '.gitmodules': 'git',
-  'package.json': 'npm',
-  'package-lock.json': 'npm',
-  'yarn.lock': 'yarn',
-  'tsconfig.json': 'typescript',
-  '.eslintrc': 'eslint',
-  '.eslintrc.js': 'eslint',
-  '.eslintrc.json': 'eslint',
-  'eslint.config.js': 'eslint',
-  'eslint.config.mjs': 'eslint',
-  '.babelrc': 'babel',
-  'webpack.config.js': 'webpack',
-  'vite.config.js': 'vitejs',
-  'vite.config.ts': 'vitejs',
+  Dockerfile: 'file-type-docker',
+  'docker-compose.yml': 'file-type-docker',
+  'docker-compose.yaml': 'file-type-docker',
+  '.dockerignore': 'file-type-docker',
+  '.gitignore': 'file-type-git',
+  '.gitattributes': 'file-type-git',
+  '.gitmodules': 'file-type-git',
+  'package.json': 'file-type-npm',
+  'package-lock.json': 'file-type-npm',
+  'yarn.lock': 'file-type-yarn',
+  'tsconfig.json': 'file-type-tsconfig',
+  '.eslintrc': 'file-type-eslint',
+  '.eslintrc.js': 'file-type-eslint',
+  '.eslintrc.json': 'file-type-eslint',
+  'eslint.config.js': 'file-type-eslint',
+  'eslint.config.mjs': 'file-type-eslint',
+  '.babelrc': 'file-type-babel',
+  'webpack.config.js': 'file-type-webpack',
+  'vite.config.js': 'file-type-vite',
+  'vite.config.ts': 'file-type-vite',
 };
 
 // Extension → icon name
 const EXTENSION_ICONS: Record<string, string> = {
-  '.js': 'javascript',
-  '.mjs': 'javascript',
-  '.cjs': 'javascript',
-  '.jsx': 'react',
-  '.tsx': 'react',
-  '.ts': 'typescript',
-  '.mts': 'typescript',
-  '.cts': 'typescript',
-  '.py': 'python',
-  '.rb': 'ruby',
-  '.rs': 'rust',
-  '.go': 'go',
-  '.java': 'java',
-  '.cs': 'csharp',
-  '.cpp': 'cplusplus',
-  '.cc': 'cplusplus',
-  '.hpp': 'cplusplus',
-  '.c': 'c',
-  '.h': 'c',
-  '.json': 'json',
-  '.yaml': 'yaml',
-  '.yml': 'yaml',
-  '.xml': 'xml',
-  '.html': 'html5',
-  '.htm': 'html5',
-  '.css': 'css3',
-  '.scss': 'sass',
-  '.sass': 'sass',
-  '.md': 'markdown',
-  '.mdx': 'markdown',
-  '.sh': 'bash',
-  '.bash': 'bash',
-  '.zsh': 'bash',
-  '.vue': 'vuejs',
-  '.svelte': 'svelte',
-  '.php': 'php',
-  '.kt': 'kotlin',
-  '.kts': 'kotlin',
-  '.swift': 'swift',
-  '.dart': 'dart',
-  '.lua': 'lua',
-  '.pl': 'perl',
-  '.hs': 'haskell',
-  '.scala': 'scala',
-  '.ex': 'elixir',
-  '.exs': 'elixir',
-  '.r': 'r',
-  '.graphql': 'graphql',
-  '.gql': 'graphql',
+  '.js': 'file-type-js',
+  '.mjs': 'file-type-js',
+  '.cjs': 'file-type-js',
+  '.jsx': 'file-type-reactjs',
+  '.tsx': 'file-type-reactts',
+  '.ts': 'file-type-typescript',
+  '.mts': 'file-type-typescript',
+  '.cts': 'file-type-typescript',
+  '.py': 'file-type-python',
+  '.rb': 'file-type-ruby',
+  '.rs': 'file-type-rust',
+  '.go': 'file-type-go',
+  '.java': 'file-type-java',
+  '.cs': 'file-type-csharp',
+  '.cpp': 'file-type-cpp',
+  '.cc': 'file-type-cpp',
+  '.hpp': 'file-type-cpp',
+  '.c': 'file-type-c',
+  '.h': 'file-type-c',
+  '.json': 'file-type-json',
+  '.yaml': 'file-type-yaml',
+  '.yml': 'file-type-yaml',
+  '.xml': 'file-type-xml',
+  '.html': 'file-type-html',
+  '.htm': 'file-type-html',
+  '.css': 'file-type-css',
+  '.scss': 'file-type-scss',
+  '.sass': 'file-type-sass',
+  '.md': 'file-type-markdown',
+  '.mdx': 'file-type-markdown',
+  '.sh': 'file-type-shell',
+  '.bash': 'file-type-shell',
+  '.zsh': 'file-type-shell',
+  '.vue': 'file-type-vue',
+  '.svelte': 'file-type-svelte',
+  '.php': 'file-type-php',
+  '.kt': 'file-type-kotlin',
+  '.kts': 'file-type-kotlin',
+  '.swift': 'file-type-swift',
+  '.dart': 'file-type-dartlang',
+  '.lua': 'file-type-lua',
+  '.pl': 'file-type-perl',
+  '.hs': 'file-type-haskell',
+  '.scala': 'file-type-scala',
+  '.ex': 'file-type-elixir',
+  '.exs': 'file-type-elixir',
+  '.r': 'file-type-r',
+  '.graphql': 'file-type-graphql',
+  '.gql': 'file-type-graphql',
 };
 
 interface IconDetectionConfig {

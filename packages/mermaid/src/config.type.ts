@@ -1825,7 +1825,7 @@ export interface TreeViewDiagramConfig extends BaseDiagramConfig {
    * Name of a registered iconify pack used to resolve unprefixed icon
    * references — both auto-detected file-type icons and `icon(name)`
    * annotations without a `pack:` prefix. The auto-detected icon names
-   * are aligned with the `devicon` pack. The pack must be registered
+   * are aligned with the `vscode-icons` pack. The pack must be registered
    * with `registerIconPacks`. When empty, auto-detection is disabled
    * and unprefixed names resolve to the built-in file/folder icons.
    *

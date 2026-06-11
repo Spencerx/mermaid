@@ -141,21 +141,21 @@ const contentLoaded = async function () {
       width: 80,
       height: 80,
     };
-    // Simplified stand-in for the iconify devicon pack, for deterministic
-    // treeView auto-detection tests (icon names match real devicon ids)
-    const staticDeviconIconPack = {
-      prefix: 'devicon',
+    // Simplified stand-in for the iconify vscode-icons pack, for deterministic
+    // treeView auto-detection tests (icon names match real vscode-icons ids)
+    const staticVscodeIconsPack = {
+      prefix: 'vscode-icons',
       icons: {
-        typescript: {
+        'file-type-typescript': {
           body: '<rect width="24" height="24" rx="3" fill="#3178c6"/><text x="12" y="17" text-anchor="middle" font-family="monospace" font-size="11" fill="#fff">TS</text>',
         },
-        javascript: {
+        'file-type-js': {
           body: '<rect width="24" height="24" rx="3" fill="#f7df1e"/><text x="12" y="17" text-anchor="middle" font-family="monospace" font-size="11" fill="#000">JS</text>',
         },
-        python: {
+        'file-type-python': {
           body: '<rect width="24" height="24" rx="3" fill="#3776ab"/><text x="12" y="17" text-anchor="middle" font-family="monospace" font-size="11" fill="#fff">PY</text>',
         },
-        npm: {
+        'file-type-npm': {
           body: '<rect width="24" height="24" rx="3" fill="#cb3837"/><text x="12" y="17" text-anchor="middle" font-family="monospace" font-size="9" fill="#fff">npm</text>',
         },
       },
@@ -176,8 +176,8 @@ const contentLoaded = async function () {
         loader: () => staticAwsIconPack,
       },
       {
-        name: 'devicon',
-        loader: () => staticDeviconIconPack,
+        name: 'vscode-icons',
+        loader: () => staticVscodeIconsPack,
       },
     ]);
     await mermaid.run();
