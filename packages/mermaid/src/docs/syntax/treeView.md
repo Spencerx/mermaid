@@ -8,8 +8,8 @@ A TreeView diagram is used to represent hierarchical data in the form of a direc
 
 The structure of the tree depends only on indentation. Labels can be **bare** (unquoted) or **quoted** (for names containing spaces).
 
-- Directories are indicated by a trailing `/` on the label — they get a folder icon and bold text.
-- Files get a file icon — override it per node with `icon()`.
+- Directories are indicated by a trailing `/` on the label — they render in bold text.
+- Icons are hidden by default — enable the built-in file/folder icons with the `showIcons` config option, or set one per node with `icon()`.
 - Quoted labels (`"my file"`) support spaces in names.
 
 ```
@@ -100,9 +100,25 @@ treeView-beta
     package.json ## project manifest
 ```
 
-### Icon overrides with icon()
+### Icons
 
-Every node gets one of the two built-in icons by default — `file` for files and `folder` for directories. Override the default with `icon(name)`, where `name` is any icon from a registered [icon pack](../config/icons.md), referenced as `pack:name`:
+Icons are hidden by default. Set the `showIcons` config option to `true` to show the built-in icons — `file` for files and `folder` for directories:
+
+```mermaid-example
+---
+config:
+  treeView:
+    showIcons: true
+---
+treeView-beta
+    src/
+        index.js
+    package.json
+```
+
+#### Icon overrides with icon()
+
+Set a node's icon explicitly with `icon(name)`, where `name` is any icon from a registered [icon pack](../config/icons.md), referenced as `pack:name`. Explicit icons always render, even when `showIcons` is off:
 
 ```mermaid-example
 treeView-beta
@@ -118,11 +134,16 @@ The built-in `file` and `folder` icons can be referenced without a prefix, e.g. 
 Icon packs are not bundled with Mermaid — they must be registered with `registerIconPacks` by the site embedding the diagram. See [registering icon packs](../config/icons.md). An unregistered icon renders as a question mark.
 ```
 
-### Hiding icons
+#### Hiding icons
 
-Use `icon()` or `icon(none)` to hide the icon of a single node. Set the `showIcons` config option to `false` to hide all icons.
+When `showIcons` is enabled, use `icon()` or `icon(none)` to hide the icon of a single node:
 
 ```mermaid-example
+---
+config:
+  treeView:
+    showIcons: true
+---
 treeView-beta
     src/
         index.js icon(none)
@@ -170,14 +191,9 @@ treeView-beta
 
 Unicode and emoji in labels:
 
-Labels are rendered exactly as written — unicode characters and consecutive spaces are preserved. Emoji make handy inline icons; combine them with `showIcons: false` to use them in place of the built-in icons:
+Labels are rendered exactly as written — unicode characters and consecutive spaces are preserved. Since the built-in icons are hidden by default, emoji make handy inline icons:
 
 ```mermaid-example
----
-config:
-  treeView:
-    showIcons: false
----
 treeView-beta
     🚀 rocket-app/
         📦 packages/
@@ -211,13 +227,13 @@ treeView-beta
 
 ## Config Variables
 
-| Property      | Description                       | Default Value |
-| ------------- | --------------------------------- | ------------- |
-| rowIndent     | Indentation for each row          | 10            |
-| paddingX      | Horizontal padding of row         | 5             |
-| paddingY      | Vertical padding of row           | 5             |
-| lineThickness | Thickness of the line             | 1             |
-| showIcons     | Whether to show file/folder icons | true          |
+| Property      | Description                                                                      | Default Value |
+| ------------- | -------------------------------------------------------------------------------- | ------------- |
+| rowIndent     | Indentation for each row                                                         | 10            |
+| paddingX      | Horizontal padding of row                                                        | 5             |
+| paddingY      | Vertical padding of row                                                          | 5             |
+| lineThickness | Thickness of the line                                                            | 1             |
+| showIcons     | Whether to show the default file/folder icons (explicit `icon()` always renders) | false         |
 
 ### Theme Variables
 

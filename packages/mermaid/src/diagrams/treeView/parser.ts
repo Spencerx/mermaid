@@ -6,7 +6,6 @@ import { sanitizeText } from '../common/common.js';
 import { populateCommonDb } from '../common/populateCommonDb.js';
 import { preprocessBoxDrawing, remapErrorLines } from './boxDrawingPreprocessor.js';
 import db from './db.js';
-import { getDefaultIcon } from './icons.js';
 import type { NodeType } from './types.js';
 
 const populate = (ast: TreeView) => {
@@ -27,15 +26,11 @@ const populate = (ast: TreeView) => {
     // Read annotations directly from AST fields (cleaned by value converter)
     const cssClass = (node.classAnnotation as unknown as string) || undefined;
 
-    // Icon: value converter extracts the iconify name from icon(name)
-    // Empty string from icon() means suppress icon
+    // Icon: value converter extracts the iconify name from icon(name).
+    // Empty string from icon() means suppress icon. Without an annotation the
+    // icon stays undefined — defaults are resolved at render time (showIcons).
     const rawIcon = node.iconAnnotation as unknown as string | undefined;
-    let icon: string | undefined;
-    if (rawIcon !== undefined) {
-      icon = rawIcon || 'none'; // empty string → 'none' (suppress)
-    } else {
-      icon = getDefaultIcon(nodeType);
-    }
+    const icon = rawIcon !== undefined ? rawIcon || 'none' : undefined;
 
     // Description comes pre-trimmed from value converter; sanitize for defense in depth
     const rawDesc = (node.descAnnotation as unknown as string) || undefined;

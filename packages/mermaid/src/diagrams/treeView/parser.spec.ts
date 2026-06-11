@@ -34,20 +34,20 @@ describe('treeView parser integration', () => {
       const node = await parseAndGetNode('src/');
       expect(node.name).toBe('src');
       expect(node.nodeType).toBe('directory');
-      expect(node.icon).toBe('folder');
+      expect(node.icon).toBeUndefined();
     });
 
     it('should parse dotfiles', async () => {
       const node = await parseAndGetNode('.gitignore');
       expect(node.name).toBe('.gitignore');
       expect(node.nodeType).toBe('file');
-      expect(node.icon).toBe('file');
+      expect(node.icon).toBeUndefined();
     });
 
     it('should parse filenames with hyphens', async () => {
       const node = await parseAndGetNode('docker-compose.yml');
       expect(node.name).toBe('docker-compose.yml');
-      expect(node.icon).toBe('file');
+      expect(node.icon).toBeUndefined();
     });
   });
 
@@ -149,7 +149,7 @@ describe('treeView parser integration', () => {
       expect(node.name).toBe('src');
       expect(node.nodeType).toBe('directory');
       expect(node.cssClass).toBe('highlight');
-      expect(node.icon).toBe('folder');
+      expect(node.icon).toBeUndefined();
     });
   });
 
@@ -158,7 +158,7 @@ describe('treeView parser integration', () => {
       const node = await parseAndGetNode('My Documents/');
       expect(node.name).toBe('My Documents');
       expect(node.nodeType).toBe('directory');
-      expect(node.icon).toBe('folder');
+      expect(node.icon).toBeUndefined();
     });
 
     it('should handle folder names with spaces and annotations', async () => {
@@ -172,7 +172,7 @@ describe('treeView parser integration', () => {
       const node = await parseAndGetNode('my file.ts ## some description');
       expect(node.name).toBe('my file.ts');
       expect(node.nodeType).toBe('file');
-      expect(node.icon).toBe('file');
+      expect(node.icon).toBeUndefined();
       expect(node.description).toBe('some description');
     });
 
@@ -194,14 +194,11 @@ describe('treeView parser integration', () => {
   });
 
   describe('default icons', () => {
-    it('should use the file icon for files', async () => {
-      const node = await parseAndGetNode('utils.ts');
-      expect(node.icon).toBe('file');
-    });
-
-    it('should use the folder icon for directories', async () => {
-      const node = await parseAndGetNode('components/');
-      expect(node.icon).toBe('folder');
+    it('should not assign an icon without an annotation — defaults are resolved at render time', async () => {
+      const file = await parseAndGetNode('utils.ts');
+      expect(file.icon).toBeUndefined();
+      const dir = await parseAndGetNode('components/');
+      expect(dir.icon).toBeUndefined();
     });
   });
 

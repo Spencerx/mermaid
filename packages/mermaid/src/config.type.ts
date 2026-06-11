@@ -1814,7 +1814,9 @@ export interface TreeViewDiagramConfig extends BaseDiagramConfig {
    */
   lineThickness?: number;
   /**
-   * Whether to show file/folder icons next to labels
+   * Whether to show the default file/folder icons next to labels.
+   * Explicit `icon()` annotations always render, regardless of this setting.
+   *
    */
   showIcons?: boolean;
 }

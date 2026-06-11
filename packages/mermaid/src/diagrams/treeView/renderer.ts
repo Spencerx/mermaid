@@ -4,7 +4,7 @@ import { log } from '../../logger.js';
 import { getIconSVG, registerIconPacks } from '../../rendering-util/icons.js';
 import { selectSvgElement } from '../../rendering-util/selectSvgElement.js';
 import { configureSvgSize } from '../../setupGraphViewbox.js';
-import { treeViewIcons } from './icons.js';
+import { getNodeIcon, treeViewIcons } from './icons.js';
 import type { D3SVGElement, Node, TreeViewDB } from './types.js';
 
 registerIconPacks([
@@ -34,11 +34,17 @@ const iconSymbolId = (diagramId: string, icon: string) =>
  * Each icon is resolved once through the iconify pipeline and referenced
  * per row via <use>, instead of repeating the icon markup for every node.
  */
-const injectIconDefs = async (svg: D3SVGElement<SVGSVGElement>, root: Node, diagramId: string) => {
+const injectIconDefs = async (
+  svg: D3SVGElement<SVGSVGElement>,
+  root: Node,
+  config: Required<TreeViewDiagramConfig>,
+  diagramId: string
+) => {
   const usedIcons = new Set<string>();
   const collect = (node: Node) => {
-    if (node.icon && node.icon !== 'none') {
-      usedIcons.add(node.icon);
+    const icon = getNodeIcon(node.icon, node.nodeType, config.showIcons);
+    if (icon) {
+      usedIcons.add(icon);
     }
     node.children.forEach(collect);
   };
@@ -81,13 +87,14 @@ const positionLabel = (
     cssClasses += ` ${node.cssClass}`;
   }
 
-  // Icon — skip if icon is 'none' or showIcons is disabled
+  // Explicit icon() annotations always render; defaults only when showIcons is on
   const iconOffset = ICON_SIZE + ICON_GAP;
-  const showIcon = config.showIcons !== false && node.icon && node.icon !== 'none';
-  if (showIcon) {
+  const icon = getNodeIcon(node.icon, node.nodeType, config.showIcons);
+  const showIcon = icon !== undefined;
+  if (icon) {
     nodeGroup
       .append('use')
-      .attr('xlink:href', `#${iconSymbolId(diagramId, node.icon!)}`)
+      .attr('xlink:href', `#${iconSymbolId(diagramId, icon)}`)
       .attr('x', x + config.paddingX)
       .attr('y', y + config.paddingY)
       .attr('class', 'treeView-node-icon');
@@ -240,9 +247,7 @@ const draw: DrawDefinition = async (text, id, _ver, diagObj) => {
   const svg = selectSvgElement(id);
 
   // Inject icon definitions (scoped to diagramId to avoid duplicates)
-  if (config.showIcons !== false) {
-    await injectIconDefs(svg, root, id);
-  }
+  await injectIconDefs(svg, root, config, id);
 
   const treeElem = svg.append('g');
   treeElem.attr('class', 'tree-view');

@@ -75,7 +75,12 @@ treeView-beta
 
   it('should render bare (unquoted) labels with icons', () => {
     imgSnapshotTest(
-      `treeView-beta
+      `---
+config:
+  treeView:
+    showIcons: true
+---
+treeView-beta
             my-project/
                 src/
                     components/
@@ -133,9 +138,14 @@ treeView-beta
     );
   });
 
-  it('should hide icons with icon(none) and icon()', () => {
+  it('should hide default icons with icon(none) and icon()', () => {
     imgSnapshotTest(
-      `treeView-beta
+      `---
+config:
+  treeView:
+    showIcons: true
+---
+treeView-beta
             src/
                 index.js icon(none)
                 App.tsx icon()
@@ -152,14 +162,9 @@ treeView-beta
     );
   });
 
-  it('should render emoji as icons when built-in icons are hidden', () => {
+  it('should render emoji as icons with the default icons hidden', () => {
     imgSnapshotTest(
-      `---
-config:
-  treeView:
-    showIcons: false
----
-treeView-beta
+      `treeView-beta
             🚀 rocket-app/
                 📦 packages/
                     🎨 ui/

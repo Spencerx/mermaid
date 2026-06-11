@@ -36,7 +36,12 @@ export default {
     {
       title: 'Annotations',
       isDefault: false,
-      code: `treeView-beta
+      code: `---
+config:
+  treeView:
+    showIcons: true
+---
+treeView-beta
             src/
                 App.tsx :::highlight icon(logos:react) ## main component
                 index.js ## entry point
@@ -46,6 +51,18 @@ export default {
             .env ## environment variables
             Dockerfile
             package.json`,
+    },
+    {
+      title: 'Unicode Icons in Filenames',
+      isDefault: false,
+      code: `treeView-beta
+            🚀 rocket-app/
+                📦 packages/
+                    🎨 ui/
+                    🛠️ utils/
+                🧪 tests/
+                📝 README.md
+                ⚙️ config.yaml`,
     },
   ],
 } satisfies DiagramMetadata;

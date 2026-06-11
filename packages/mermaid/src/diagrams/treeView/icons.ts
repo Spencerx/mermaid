@@ -26,8 +26,22 @@ export const treeViewIcons: IconifyJSON = {
 };
 
 /**
- * Default icon name for a node when no `icon()` annotation is given.
+ * Resolve the icon to render for a node.
+ *
+ * An explicit `icon()` annotation always wins (with `none` hiding the icon);
+ * otherwise the default file/folder icon is used, but only when `showIcons`
+ * is enabled. Returns `undefined` when no icon should be rendered.
  */
-export function getDefaultIcon(nodeType: NodeType): string {
-  return nodeType === 'directory' ? 'folder' : 'file';
+export function getNodeIcon(
+  icon: string | undefined,
+  nodeType: NodeType,
+  showIcons: boolean
+): string | undefined {
+  if (icon === 'none') {
+    return undefined;
+  }
+  if (icon) {
+    return icon;
+  }
+  return showIcons ? (nodeType === 'directory' ? 'folder' : 'file') : undefined;
 }

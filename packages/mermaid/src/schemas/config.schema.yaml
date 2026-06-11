@@ -2540,9 +2540,11 @@ $defs: # JSON Schema definition (maybe we should move these to a separate file)
         minimum: 0
         default: 1
       showIcons:
-        description: Whether to show file/folder icons next to labels
+        description: |
+          Whether to show the default file/folder icons next to labels.
+          Explicit `icon()` annotations always render, regardless of this setting.
         type: boolean
-        default: true
+        default: false
 
   RadarDiagramConfig:
     title: Radar Diagram Config
