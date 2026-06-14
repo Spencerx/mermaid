@@ -111,19 +111,19 @@ export const addRel = function (
   if (typeof sprite === 'object') {
     const [key, value] = Object.entries(sprite)[0];
     rel[key] = value;
-  } else {
+  } else if (sprite !== undefined) {
     rel.sprite = sprite;
   }
   if (typeof tags === 'object') {
     const [key, value] = Object.entries(tags)[0];
     rel[key] = value;
-  } else {
+  } else if (tags !== undefined) {
     rel.tags = tags;
   }
   if (typeof link === 'object') {
     const [key, value] = Object.entries(link)[0];
     rel[key] = value;
-  } else {
+  } else if (link !== undefined) {
     rel.link = link;
   }
   rel.wrap = autoWrap();
@@ -174,19 +174,19 @@ export const addPersonOrSystem = function (
   if (typeof sprite === 'object') {
     const [key, value] = Object.entries(sprite)[0];
     personOrSystem[key] = value;
-  } else {
+  } else if (sprite !== undefined) {
     personOrSystem.sprite = sprite;
   }
   if (typeof tags === 'object') {
     const [key, value] = Object.entries(tags)[0];
     personOrSystem[key] = value;
-  } else {
+  } else if (tags !== undefined) {
     personOrSystem.tags = tags;
   }
   if (typeof link === 'object') {
     const [key, value] = Object.entries(link)[0];
     personOrSystem[key] = value;
-  } else {
+  } else if (link !== undefined) {
     personOrSystem.link = link;
   }
   personOrSystem.typeC4Shape = { text: typeC4Shape };
@@ -251,19 +251,19 @@ export const addContainer = function (
   if (typeof sprite === 'object') {
     const [key, value] = Object.entries(sprite)[0];
     container[key] = value;
-  } else {
+  } else if (sprite !== undefined) {
     container.sprite = sprite;
   }
   if (typeof tags === 'object') {
     const [key, value] = Object.entries(tags)[0];
     container[key] = value;
-  } else {
+  } else if (tags !== undefined) {
     container.tags = tags;
   }
   if (typeof link === 'object') {
     const [key, value] = Object.entries(link)[0];
     container[key] = value;
-  } else {
+  } else if (link !== undefined) {
     container.link = link;
   }
   container.wrap = autoWrap();
@@ -328,19 +328,19 @@ export const addComponent = function (
   if (typeof sprite === 'object') {
     const [key, value] = Object.entries(sprite)[0];
     component[key] = value;
-  } else {
+  } else if (sprite !== undefined) {
     component.sprite = sprite;
   }
   if (typeof tags === 'object') {
     const [key, value] = Object.entries(tags)[0];
     component[key] = value;
-  } else {
+  } else if (tags !== undefined) {
     component.tags = tags;
   }
   if (typeof link === 'object') {
     const [key, value] = Object.entries(link)[0];
     component[key] = value;
-  } else {
+  } else if (link !== undefined) {
     component.link = link;
   }
   component.wrap = autoWrap();
@@ -393,13 +393,13 @@ export const addPersonOrSystemBoundary = function (
   if (typeof tags === 'object') {
     const [key, value] = Object.entries(tags)[0];
     boundary[key] = value;
-  } else {
+  } else if (tags !== undefined) {
     boundary.tags = tags;
   }
   if (typeof link === 'object') {
     const [key, value] = Object.entries(link)[0];
     boundary[key] = value;
-  } else {
+  } else if (link !== undefined) {
     boundary.link = link;
   }
   boundary.parentBoundary = currentBoundaryParse;
@@ -455,13 +455,13 @@ export const addContainerBoundary = function (
   if (typeof tags === 'object') {
     const [key, value] = Object.entries(tags)[0];
     boundary[key] = value;
-  } else {
+  } else if (tags !== undefined) {
     boundary.tags = tags;
   }
   if (typeof link === 'object') {
     const [key, value] = Object.entries(link)[0];
     boundary[key] = value;
-  } else {
+  } else if (link !== undefined) {
     boundary.link = link;
   }
   boundary.parentBoundary = currentBoundaryParse;
@@ -531,13 +531,13 @@ export const addDeploymentNode = function (
   if (typeof tags === 'object') {
     const [key, value] = Object.entries(tags)[0];
     boundary[key] = value;
-  } else {
+  } else if (tags !== undefined) {
     boundary.tags = tags;
   }
   if (typeof link === 'object') {
     const [key, value] = Object.entries(link)[0];
     boundary[key] = value;
-  } else {
+  } else if (link !== undefined) {
     boundary.link = link;
   }
   boundary.nodeType = nodeType;
