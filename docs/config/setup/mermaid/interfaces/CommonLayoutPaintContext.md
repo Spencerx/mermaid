@@ -10,7 +10,7 @@
 
 # Interface: CommonLayoutPaintContext\<PreparedLayout, MeasureResult>
 
-Defined in: [packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts:47](https://github.com/mermaid-js/mermaid/blob/master/packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts#L47)
+Defined in: [packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts:45](https://github.com/mermaid-js/mermaid/blob/master/packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts#L45)
 
 ## Extends
 
@@ -32,7 +32,7 @@ Defined in: [packages/mermaid/src/rendering-util/layout-algorithms/common/index.
 
 > **element**: `D3Selection`<`SVGElement`>
 
-Defined in: [packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts:40](https://github.com/mermaid-js/mermaid/blob/master/packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts#L40)
+Defined in: [packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts:39](https://github.com/mermaid-js/mermaid/blob/master/packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts#L39)
 
 #### Inherited from
 
@@ -44,7 +44,7 @@ Defined in: [packages/mermaid/src/rendering-util/layout-algorithms/common/index.
 
 > `optional` **helpers**: `object`
 
-Defined in: [packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts:41](https://github.com/mermaid-js/mermaid/blob/master/packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts#L41)
+Defined in: [packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts:40](https://github.com/mermaid-js/mermaid/blob/master/packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts#L40)
 
 #### common
 
@@ -492,7 +492,7 @@ The curve factory to use
 
 > **measure**: `MeasureResult`
 
-Defined in: [packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts:51](https://github.com/mermaid-js/mermaid/blob/master/packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts#L51)
+Defined in: [packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts:49](https://github.com/mermaid-js/mermaid/blob/master/packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts#L49)
 
 ---
 
@@ -500,7 +500,7 @@ Defined in: [packages/mermaid/src/rendering-util/layout-algorithms/common/index.
 
 > `optional` **options**: [`RenderOptions`](RenderOptions.md)
 
-Defined in: [packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts:42](https://github.com/mermaid-js/mermaid/blob/master/packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts#L42)
+Defined in: [packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts:41](https://github.com/mermaid-js/mermaid/blob/master/packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts#L41)
 
 #### Inherited from
 
@@ -508,23 +508,11 @@ Defined in: [packages/mermaid/src/rendering-util/layout-algorithms/common/index.
 
 ---
 
-### positions?
-
-> `optional` **positions**: `Positions`
-
-Defined in: [packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts:43](https://github.com/mermaid-js/mermaid/blob/master/packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts#L43)
-
-#### Inherited from
-
-[`CommonLayoutRenderContext`](CommonLayoutRenderContext.md).[`positions`](CommonLayoutRenderContext.md#positions)
-
----
-
 ### preparedLayout?
 
 > `optional` **preparedLayout**: `PreparedLayout`
 
-Defined in: [packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts:44](https://github.com/mermaid-js/mermaid/blob/master/packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts#L44)
+Defined in: [packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts:42](https://github.com/mermaid-js/mermaid/blob/master/packages/mermaid/src/rendering-util/layout-algorithms/common/index.ts#L42)
 
 #### Inherited from
 
