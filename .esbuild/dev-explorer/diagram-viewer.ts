@@ -41,7 +41,11 @@ type CapturedSizesEntry = {
 // Shape of the render profiler exposed by mermaid dev/profiling builds as
 // `window.__mermaidProfiler` (see packages/mermaid/src/profiler.ts).
 type ProfileSpanLike = { name: string; duration: number; children: ProfileSpanLike[] };
-type ProfileRecordLike = { label: string; tree: ProfileSpanLike };
+type ProfileRecordLike = {
+  label: string;
+  tree: ProfileSpanLike;
+  buckets?: Record<string, number>;
+};
 type MermaidProfiler = {
   enabled: boolean;
   autoPrint: boolean;
@@ -177,19 +181,20 @@ function phaseDuration(tree: ProfileSpanLike, phase: string): number | undefined
 function layoutLibDuration(tree: ProfileSpanLike): number | undefined {
   const layoutSpan = findSpan(tree, 'layout');
   if (!layoutSpan) return undefined;
-  return findSpan(layoutSpan, 'layoutCore')?.duration;
+  // The top-level external call is a DIRECT child of the layout span. dagre also
+  // emits nested layoutCore spans for subgraphs (deeper, inside the measure
+  // span); a depth-first search would wrongly grab one of those, so only look one
+  // level down. (Nested subgraph layout time still lands in `measure` — the
+  // documented recursion caveat.)
+  return layoutSpan.children.find((c) => c.name === 'layoutCore')?.duration;
 }
-
-// Keys carried in each RunStats: the visible phases plus the derived layout
-// split (external library vs. our wrapper).
-const STAT_KEYS: string[] = [...PROFILE_PHASES, 'layoutLib', 'layoutOurs'];
 
 function mean(values: number[]): number {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : NaN;
 }
 
-// Normalize one render tree to its per-phase durations + total.
-function sampleFromTree(tree: ProfileSpanLike): RunSample {
+// Normalize one render tree (+ flat buckets) to its per-phase durations + total.
+function sampleFromTree(tree: ProfileSpanLike, buckets: Record<string, number> = {}): RunSample {
   const phases: Record<string, number> = {};
   for (const phase of PROFILE_PHASES) {
     const d = phaseDuration(tree, phase);
@@ -203,6 +208,10 @@ function sampleFromTree(tree: ProfileSpanLike): RunSample {
       phases.layoutOurs = Math.max(0, phases.layout - lib);
     }
   }
+  // Flat accumulators summed across the render (e.g. getBBox, getBoundingClientRect).
+  for (const [name, value] of Object.entries(buckets)) {
+    if (typeof value === 'number') phases[name] = value;
+  }
   return { total: tree.duration, phases };
 }
 
@@ -215,7 +224,12 @@ function trimmedStats(samples: RunSample[]): RunStats | null {
     kept = [...samples].sort((a, b) => a.total - b.total).slice(1, -1);
   }
   const phases: Record<string, number> = {};
-  for (const phase of STAT_KEYS) {
+  // Aggregate every key any sample carries (phases + dynamic buckets like getBBox).
+  const keys = new Set<string>();
+  for (const s of kept) {
+    for (const k of Object.keys(s.phases)) keys.add(k);
+  }
+  for (const phase of keys) {
     const vals = kept.map((k) => k.phases[phase]).filter((v): v is number => typeof v === 'number');
     if (vals.length) {
       phases[phase] = mean(vals);
@@ -1072,13 +1086,17 @@ export class DevDiagramViewer extends LitElement {
               );
             }
           }
-          const samples = profiler.records.map((r) => sampleFromTree(r.tree));
+          const samples = profiler.records.map((r) => sampleFromTree(r.tree, r.buckets));
           perDiagram.push({ diagram: diagram.path, stats: trimmedStats(samples), failures });
         }
 
         const measured = perDiagram.filter((d) => d.stats);
         const phaseTotals: Record<string, number> = {};
-        for (const phase of STAT_KEYS) {
+        const phaseKeys = new Set<string>();
+        for (const d of measured) {
+          for (const k of Object.keys(d.stats?.phases ?? {})) phaseKeys.add(k);
+        }
+        for (const phase of phaseKeys) {
           phaseTotals[phase] = measured.reduce((s, d) => s + (d.stats?.phases[phase] ?? 0), 0);
         }
         results.push({
@@ -1618,10 +1636,6 @@ export class DevDiagramViewer extends LitElement {
                 ${results.map((r) => html`<td>${fmtMs(r.phaseTotals[phase])}</td>`)}
               </tr>
             `;
-            if (phase !== 'layout') {
-              return [row];
-            }
-            // Break "layout" into the external library call vs. our wrapper.
             const subRow = (label: string, key: string) => html`
               <tr class="sub-row">
                 <th class="phase">${label}</th>
@@ -1631,11 +1645,23 @@ export class DevDiagramViewer extends LitElement {
                 })}
               </tr>
             `;
-            return [
-              row,
-              subRow('↳ lib (external)', 'layoutLib'),
-              subRow('↳ ours (wrapper)', 'layoutOurs'),
-            ];
+            // Break "layout" into the external library call vs. our wrapper, and
+            // "measure" into the DOM reflow queries (getBBox / getBoundingClientRect).
+            if (phase === 'layout') {
+              return [
+                row,
+                subRow('↳ lib (external)', 'layoutLib'),
+                subRow('↳ ours (wrapper)', 'layoutOurs'),
+              ];
+            }
+            if (phase === 'measure') {
+              return [
+                row,
+                subRow('↳ getBBox', 'getBBox'),
+                subRow('↳ getBoundingClientRect', 'getBoundingClientRect'),
+              ];
+            }
+            return [row];
           })}
           <tr class="total">
             <th class="phase">score</th>
