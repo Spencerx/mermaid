@@ -5,14 +5,7 @@
   "aggregation": "mean of runs after dropping the fastest and slowest; warmup discarded",
   "theme": "redux",
   "look": "neo",
-  "phases": [
-    "parse",
-    "prepare",
-    "measure",
-    "layout",
-    "paint",
-    "serialize"
-  ],
+  "phases": ["parse", "prepare", "measure", "layout", "paint", "serialize"],
   "layouts": [
     {
       "layout": "dagre",
