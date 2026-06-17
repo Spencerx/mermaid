@@ -752,7 +752,7 @@ export const prepareLayoutForDagre = (data4Layout) => {
     }
   });
 
-  log.warn('Graph at first:', JSON.stringify(graphlibJson.write(graph)));
+  log.debug('Graph at first:', JSON.stringify(graphlibJson.write(graph)));
   adjustClustersAndEdges(graph);
   log.warn('Graph after XAX:', JSON.stringify(graphlibJson.write(graph)));
 
