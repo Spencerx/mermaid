@@ -20,9 +20,9 @@ describe('profiler', () => {
     profiler.enable();
     profiler.runLabel = 'dagre';
     profiler.start('render');
-    await profiler.span('parse', async () => undefined);
+    await profiler.span('parse', () => undefined);
     await profiler.span('draw', async () => {
-      await profiler.span('layout', async () => undefined);
+      await profiler.span('layout', () => undefined);
     });
     const root = profiler.stop();
 
@@ -48,7 +48,7 @@ describe('profiler', () => {
     expect(root?.children[0]?.name).toBe('boom');
   });
 
-  it('consumes runLabel after a single render, then falls back to the root name', async () => {
+  it('consumes runLabel after a single render, then falls back to the root name', () => {
     profiler.enable();
     profiler.runLabel = 'elk';
     profiler.start('render');
