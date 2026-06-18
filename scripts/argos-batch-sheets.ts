@@ -30,6 +30,12 @@ const GRID_LINE_WIDTH = 1;
 const GRID_LINE_COLOR = '#cccccc';
 /** Default output scale for composite sheets (1 = native pixel dimensions). */
 export const DEFAULT_SHEET_SCALE = 1;
+/** Default sheets composited concurrently (bounded so memory stays sane). */
+export const DEFAULT_SHEET_CONCURRENCY = 4;
+/** zlib level for the final written sheet — uploaded then discarded, so size barely matters. */
+const SHEET_PNG_COMPRESSION = 3;
+/** Transient buffers are re-decoded during composite; skip zlib effort entirely. */
+const INTERMEDIATE_PNG_COMPRESSION = 0;
 
 function scaled(value: number, scale: number): number {
   return Math.round(value * scale);
@@ -105,18 +111,6 @@ function createLabelSvg(
   return Buffer.from(svg);
 }
 
-async function createLabelBuffer(
-  title: string,
-  width: number,
-  height: number,
-  fontSize: number,
-  padding: number
-): Promise<Buffer> {
-  return sharp(createLabelSvg(title, width, height, fontSize, padding))
-    .png({ compressionLevel: 9 })
-    .toBuffer();
-}
-
 function createGridLinesSvg(
   width: number,
   height: number,
@@ -161,8 +155,29 @@ async function createGridLinesBuffer(
   lineWidth: number
 ): Promise<Buffer> {
   return sharp(createGridLinesSvg(width, height, cols, rows, cellWidth, cellHeight, lineWidth))
-    .png({ compressionLevel: 9 })
+    .png({ compressionLevel: INTERMEDIATE_PNG_COMPRESSION })
     .toBuffer();
+}
+
+// Grid lines depend only on dimensions, which repeat across same-shape sheets
+// (every full sheet shares them). Rasterize once per shape and reuse.
+const gridBufferCache = new Map<string, Promise<Buffer>>();
+function getGridBuffer(
+  width: number,
+  height: number,
+  cols: number,
+  rows: number,
+  cellWidth: number,
+  cellHeight: number,
+  lineWidth: number
+): Promise<Buffer> {
+  const key = `${width}:${height}:${cols}:${rows}:${cellWidth}:${cellHeight}:${lineWidth}`;
+  let buffer = gridBufferCache.get(key);
+  if (!buffer) {
+    buffer = createGridLinesBuffer(width, height, cols, rows, cellWidth, cellHeight, lineWidth);
+    gridBufferCache.set(key, buffer);
+  }
+  return buffer;
 }
 
 export interface PlanSheetsOptions {
@@ -187,6 +202,7 @@ export interface WriteSheetsOptions {
   scale?: number;
   tileWidth?: number;
   tileImageHeight?: number;
+  concurrency?: number;
 }
 
 /** Maps a screenshot path to its diagram folder (prefix before the `*.spec.*` segment). */
@@ -289,26 +305,22 @@ export async function composeSheet(
           fit: 'inside',
           kernel: sharp.kernel.lanczos3,
         })
-        .png({ compressionLevel: 9 })
+        .png({ compressionLevel: INTERMEDIATE_PNG_COMPRESSION })
         .toBuffer()
     )
   );
 
-  const labelBuffers = await Promise.all(
-    plan.tiles.map((t) =>
-      createLabelBuffer(
+  // Label SVGs are composited directly; sharp rasterizes them in the sheet
+  // pipeline, avoiding a per-tile PNG encode + decode round-trip.
+  const composites = plan.tiles.flatMap((t, i) => [
+    {
+      input: createLabelSvg(
         formatTileTitle(t.name),
         cellWidth,
         labelHeight,
         labelFontSize,
         labelPadding
-      )
-    )
-  );
-
-  const composites = plan.tiles.flatMap((t, i) => [
-    {
-      input: labelBuffers[i],
+      ),
       left: t.col * cellWidth,
       top: t.row * cellHeight,
     },
@@ -321,7 +333,7 @@ export async function composeSheet(
 
   const sheetWidth = cellWidth * cols;
   const sheetHeight = cellHeight * rows;
-  const gridBuffer = await createGridLinesBuffer(
+  const gridBuffer = await getGridBuffer(
     sheetWidth,
     sheetHeight,
     cols,
@@ -335,7 +347,7 @@ export async function composeSheet(
     create: { width: sheetWidth, height: sheetHeight, channels: 4, background },
   })
     .composite([...composites, { input: gridBuffer, left: 0, top: 0 }])
-    .png({ compressionLevel: 9 })
+    .png({ compressionLevel: SHEET_PNG_COMPRESSION })
     .toBuffer();
 
   const manifest: SheetManifest = {
@@ -365,7 +377,8 @@ export async function composeSheet(
 
 /** Writes composite PNGs and sibling `.json` manifests under outDir. */
 export async function writeSheets(plans: Sheet[], options: WriteSheetsOptions): Promise<void> {
-  for (const plan of plans) {
+  const concurrency = Math.max(1, options.concurrency ?? DEFAULT_SHEET_CONCURRENCY);
+  const writeOne = async (plan: Sheet): Promise<void> => {
     const { buffer, manifest } = await composeSheet(plan, {
       inputDir: options.inputDir,
       scale: options.scale,
@@ -376,6 +389,9 @@ export async function writeSheets(plans: Sheet[], options: WriteSheetsOptions): 
     await mkdir(dirname(sheetPath), { recursive: true });
     await writeFile(sheetPath, buffer);
     await writeFile(sheetPath.replace(/\.png$/, '.json'), JSON.stringify(manifest, null, 2) + '\n');
+  };
+  for (let start = 0; start < plans.length; start += concurrency) {
+    await Promise.all(plans.slice(start, start + concurrency).map(writeOne));
   }
 }
 
@@ -387,10 +403,11 @@ async function main(): Promise<void> {
   const scale = Number(process.env.ARGOS_SHEET_SCALE ?? DEFAULT_SHEET_SCALE);
   const tileWidth = Number(process.env.ARGOS_TILE_WIDTH ?? DEFAULT_TILE_WIDTH);
   const tileImageHeight = Number(process.env.ARGOS_TILE_IMAGE_HEIGHT ?? DEFAULT_TILE_IMAGE_HEIGHT);
+  const concurrency = Number(process.env.ARGOS_SHEET_CONCURRENCY ?? DEFAULT_SHEET_CONCURRENCY);
 
   const relPaths = await collectScreenshots(inputDir);
   const plans = planSheets(relPaths, { tilesPerSheet, cols });
-  await writeSheets(plans, { inputDir, outDir, scale, tileWidth, tileImageHeight });
+  await writeSheets(plans, { inputDir, outDir, scale, tileWidth, tileImageHeight, concurrency });
   process.stdout.write(
     `[argos-batch] ${relPaths.length} screenshots → ${plans.length} sheets in ${outDir}\n`
   );
