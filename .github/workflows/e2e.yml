@@ -324,25 +324,22 @@ jobs:
         if: env.GROUP_ARGOS_IMAGES == 'true'
         run: pnpm run argos:batch
 
-      # Baseline branch (develop): combine the grouped sheets and the individual
+      # Baseline branch (develop): merge the grouped sheets and the individual
       # screenshots into one tree and upload them as a SINGLE Argos build. The CLI
       # uploads one directory and names each screenshot relative to it, so merging
       # preserves both naming schemes — sheet names (<group>/<group>-NNN.png) and
       # individual names (<group>/<spec>.spec.js/<name>.png) never collide and match
       # exactly what grouped PR / manual runs upload. The default build thus becomes
       # a superset baseline both modes can diff against (each marked --subset).
-      - name: Combine sheets and individual screenshots (develop baseline)
+      # No --subset here: a develop push runs the full suite and uploads both
+      # representations, so this is the complete, authoritative baseline.
+      - name: Upload combined baseline to Argos (develop)
         if: env.ARGOS_UPLOAD_BOTH == 'true'
         run: |
           mkdir -p cypress/argos-baseline
           cp -r cypress/argos-sheets/. cypress/argos-baseline/
           cp -r cypress/screenshots/. cypress/argos-baseline/
-
-      # No --subset: a develop push runs the full suite and uploads both
-      # representations, so this is the complete, authoritative baseline.
-      - name: Upload combined baseline to Argos (develop)
-        if: env.ARGOS_UPLOAD_BOTH == 'true'
-        run: npx argos upload cypress/argos-baseline
+          npx argos upload cypress/argos-baseline
 
       # PR / merge-queue / manual grouped runs: upload only the composite sheets.
       - name: Upload grouped sheets to Argos
