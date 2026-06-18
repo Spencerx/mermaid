@@ -287,7 +287,6 @@ export async function composeSheet(
       sharp(join(inputDir, t.source))
         .resize(cellWidth, imageHeight, {
           fit: 'inside',
-          withoutEnlargement: true,
           kernel: sharp.kernel.lanczos3,
         })
         .png({ compressionLevel: 9 })
@@ -309,14 +308,14 @@ export async function composeSheet(
 
   const composites = plan.tiles.flatMap((t, i) => [
     {
-      input: tileBuffers[i],
+      input: labelBuffers[i],
       left: t.col * cellWidth,
       top: t.row * cellHeight,
     },
     {
-      input: labelBuffers[i],
+      input: tileBuffers[i],
       left: t.col * cellWidth,
-      top: t.row * cellHeight + imageHeight,
+      top: t.row * cellHeight + labelHeight,
     },
   ]);
 
