@@ -6,7 +6,18 @@ Per-test screenshots are captured during Cypress runs but **not** uploaded in-ru
 
 1. **Capture** — `cy.argosScreenshot` writes PNGs to `cypress/screenshots/.../argos/` (local only; no `registerArgosTask` / no in-run upload).
 2. **Batch** — `pnpm run argos:batch` groups screenshots by diagram folder, stable-sorts, chunks into fixed-tile sheets, and writes composites + JSON manifests to `cypress/argos-sheets/`.
-3. **Upload** — the `argos-batch` CI job runs `argos upload cypress/argos-sheets` to the **mermaid-batched** Argos project via `ARGOS_MERMAID_BATCHED_TOKEN` (falls back to `ARGOS_TOKEN`). Set `ARGOS_SUBSET=true` for scoped runs.
+3. **Upload** — the `argos-batch` CI job uploads either composite sheets (`group_argos_images: true`, **mermaid-batched** project) or individual screenshots (`group_argos_images: false`, standard **mermaid** project). Automatic runs always batch; manual workflow dispatches can choose.
+
+## Manual CI run
+
+In GitHub Actions → **E2E** → **Run workflow**:
+
+| Input                | Default   | Description                                  |
+| -------------------- | --------- | -------------------------------------------- |
+| `group_argos_images` | `true`    | Batch into composite sheets before upload    |
+| `spec_pattern`       | _(empty)_ | Cypress spec glob; empty runs the full suite |
+
+When `group_argos_images` is `false`, screenshots upload individually via `ARGOS_TOKEN` (`mermaid` project). Batched sheets use `ARGOS_BATCHED_TOKEN` (`mermaid-batched` project).
 
 ## Local workflow
 
@@ -29,6 +40,11 @@ pnpm run argos:batch
 | `ARGOS_SHEET_COLS`      | `3`                    | Grid columns per sheet        |
 | `ARGOS_SHEET_SCALE`     | `2`                    | Output scale (2 = 2× pixels)  |
 
-CI upload targets the **mermaid-batched** Argos project (`ARGOS_MERMAID_BATCHED_TOKEN` GitHub secret, or `ARGOS_TOKEN`).
+CI upload tokens:
+
+| Upload mode    | GitHub secret         | Argos project     |
+| -------------- | --------------------- | ----------------- |
+| Batched sheets | `ARGOS_BATCHED_TOKEN` | `mermaid-batched` |
+| Per-screenshot | `ARGOS_TOKEN`         | `mermaid`         |
 
 Sheets are grouped by diagram folder (the path prefix before the `*.spec.*` directory segment Cypress inserts). Each sheet has a sibling `.json` manifest listing tile names, positions, and source paths for traceability.

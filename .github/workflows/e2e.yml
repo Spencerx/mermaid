@@ -8,6 +8,16 @@ on:
       - release/**
   pull_request:
   merge_group:
+  workflow_dispatch:
+    inputs:
+      group_argos_images:
+        description: Composite screenshots into batched sheets before Argos upload
+        type: boolean
+        default: true
+      spec_pattern:
+        description: Cypress spec glob (empty = full suite)
+        type: string
+        default: ''
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
@@ -18,6 +28,7 @@ env:
   # For PRs and MergeQueues, the target commit is used, and for push events to non-develop branches, github.event.previous is used if available. Otherwise, 'develop' is used.
   targetHash: >-
     ${{
+      github.event_name == 'workflow_dispatch' && 'develop' ||
       github.event.pull_request.base.sha ||
       github.event.merge_group.base_sha ||
       (
@@ -29,7 +40,18 @@ env:
       github.event.before
     }}
   RUN_VISUAL_TEST: >-
-    ${{ github.repository == 'mermaid-js/mermaid' && (github.event_name != 'pull_request' || !startsWith(github.head_ref, 'renovate/')) }}
+    ${{
+      github.repository == 'mermaid-js/mermaid' && (
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name != 'pull_request' || !startsWith(github.head_ref, 'renovate/'))
+      )
+    }}
+  # Automatic runs always batch; manual runs can upload per-screenshot instead.
+  GROUP_ARGOS_IMAGES: >-
+    ${{
+      github.event_name != 'workflow_dispatch' && 'true' ||
+      (inputs.group_argos_images && 'true' || 'false')
+    }}
 jobs:
   cache:
     runs-on: ubuntu-latest
@@ -92,6 +114,20 @@ jobs:
       - name: Detect e2e scope
         id: scope
         run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            SPEC="${{ github.event.inputs.spec_pattern }}"
+            if [ -n "$SPEC" ]; then
+              echo "spec_pattern=${SPEC}" >> "$GITHUB_OUTPUT"
+              echo "matrix=[1]" >> "$GITHUB_OUTPUT"
+              echo "[detect-scope] Manual run — scoped to: ${SPEC}"
+            else
+              echo "spec_pattern=" >> "$GITHUB_OUTPUT"
+              echo "matrix=[1,2,3,4,5]" >> "$GITHUB_OUTPUT"
+              echo "[detect-scope] Manual run — full suite."
+            fi
+            exit 0
+          fi
+
           # Kill-switch: set the repo variable E2E_SCOPE_BY_DIAGRAM to 'false'
           # to disable scoping.  Scoping is ON by default so that fork PRs
           # (where repository variables are unavailable) still benefit from it.
@@ -248,7 +284,8 @@ jobs:
     if: >-
       ${{
         github.repository == 'mermaid-js/mermaid' &&
-        (github.event_name != 'pull_request' || !startsWith(github.head_ref, 'renovate/')) &&
+        (github.event_name == 'workflow_dispatch' ||
+          (github.event_name != 'pull_request' || !startsWith(github.head_ref, 'renovate/'))) &&
         needs.detect-scope.outputs.spec_pattern != 'SKIP' &&
         !cancelled()
       }}
@@ -276,16 +313,24 @@ jobs:
           path: cypress/screenshots
 
       - name: Build composite sheets
+        if: env.GROUP_ARGOS_IMAGES == 'true'
         run: pnpm run argos:batch
 
-      - name: Upload sheets to Argos
+      - name: Upload grouped sheets to Argos
+        if: env.GROUP_ARGOS_IMAGES == 'true'
         env:
-          ARGOS_TOKEN: ${{ secrets.ARGOS_MERMAID_BATCHED_TOKEN || secrets.ARGOS_TOKEN }}
           GITHUB_TOKEN: ${{ github.token }}
           # Scoped runs captured only some folders; tell Argos this build is a
           # partial set so absent sheets are not treated as deletions.
           ARGOS_SUBSET: ${{ needs.detect-scope.outputs.spec_pattern != '' }}
-        run: npx argos upload cypress/argos-sheets
+        run: npx argos upload cypress/argos-sheets --token "${{ secrets.ARGOS_BATCHED_TOKEN }}"
+
+      - name: Upload individual screenshots to Argos
+        if: env.GROUP_ARGOS_IMAGES != 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ARGOS_SUBSET: ${{ needs.detect-scope.outputs.spec_pattern != '' }}
+        run: npx argos upload cypress/screenshots --token "${{ secrets.ARGOS_TOKEN }}"
 
   e2e-required:
     if: always()
