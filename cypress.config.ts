@@ -13,6 +13,11 @@ export default eyesPlugin(
     projectId: 'n2sma2',
     viewportWidth: 1440,
     viewportHeight: 1024,
+    // Native V8 coverage report generation (cypress-monocart-coverage's
+    // `coverageAfter` task) can exceed Cypress's default 60s taskTimeout on the
+    // heaviest specs (e.g. iconShape.spec.ts), failing the after-all hook. Give
+    // task hooks more headroom.
+    taskTimeout: 180000,
     e2e: {
       baseUrl: `http://localhost:${process.env.MERMAID_PORT ?? 9000}`,
       specPattern: 'cypress/integration/**/*.{js,ts}',
