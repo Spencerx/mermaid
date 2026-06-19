@@ -379,21 +379,28 @@ jobs:
           cp -r cypress/argos-sheets/. cypress/argos-baseline/
           cp -r cypress/screenshots/. cypress/argos-baseline/
 
-          # Round-robin the top-level diagram-group folders into K buckets so each
-          # upload's finalize body carries metadata for only ~1/K of the suite.
-          mapfile -t groups < <(cd cypress/argos-baseline && ls -d */ | sed 's#/##')
+          # Round-robin the leaf directories (those that directly hold images)
+          # into K buckets so each upload's finalize body carries only ~1/K of the
+          # suite. Bucketing by top-level folder instead put all of rendering/
+          # (~60% of the suite) into one bucket whose finalize body exceeded
+          # Argos's limit (HTTP 413) regardless of K; balancing at the leaf level
+          # keeps the biggest bucket to ~1/K.
+          mapfile -t groups < <(
+            cd cypress/argos-baseline &&
+              find . -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' \) |
+              sed 's#/[^/]*$##' | sort -u | sed 's#^\./##'
+          )
           K=5
           for i in $(seq 1 "$K"); do
             globs=()
             for j in "${!groups[@]}"; do
-              # Match only image files. A bare `<group>/**` also matches the
-              # `<name>.png.argos.json` metadata sidecars; Argos then treats each
-              # sidecar as a screenshot and reads `<sidecar>.argos.json`, doubling
-              # the suffix. For long screenshot names that path exceeds the 255-byte
-              # filename limit (ENAMETOOLONG), which Argos rethrows as
-              # "Failed to read metadata". Restricting to images avoids this and
-              # keeps the `.json` manifests / sidecars out of the upload entirely.
-              if [ $(( j % K + 1 )) -eq "$i" ]; then globs+=( "${groups[$j]}/**/*.{png,jpg,jpeg}" ); fi
+              # Glob each leaf dir non-recursively (`/*` not `/**`) so the buckets
+              # stay a disjoint partition, and match only images: a `/**` glob would
+              # also pick up the `<name>.png.argos.json` metadata sidecars, which
+              # Argos treats as screenshots and whose doubled `<sidecar>.argos.json`
+              # path overflows the 255-byte filename limit (ENAMETOOLONG, surfaced
+              # as "Failed to read metadata").
+              if [ $(( j % K + 1 )) -eq "$i" ]; then globs+=( "${groups[$j]}/*.{png,jpg,jpeg}" ); fi
             done
             [ ${#globs[@]} -eq 0 ] && continue
             npx argos upload cypress/argos-baseline \
