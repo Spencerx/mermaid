@@ -2,4 +2,4 @@
 'mermaid': minor
 ---
 
-feat: add per-point text labels for xychart line plots
+feat(xychart): add per-point text labels for xychart line plots

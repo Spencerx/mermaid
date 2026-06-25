@@ -3,4 +3,4 @@
 '@mermaid-js/parser': minor
 ---
 
-feat: Add support for Railroad Diagrams (Syntax Diagrams) with four input syntaxes: IR (railroad-beta), EBNF (railroad-ebnf-beta), ABNF (railroad-abnf-beta), and PEG (railroad-peg-beta). The IR layer provides direct layout control via function-call primitives, while EBNF, ABNF, and PEG front-ends transform grammar notation into the shared IR for rendering.
+feat(railroad): Add support for Railroad Diagrams (Syntax Diagrams) with four input syntaxes: IR (railroad-beta), EBNF (railroad-ebnf-beta), ABNF (railroad-abnf-beta), and PEG (railroad-peg-beta).

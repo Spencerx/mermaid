@@ -2,4 +2,4 @@
 'mermaid': patch
 ---
 
-Fix invalid syntax between state and '{'
+fix(state): Fix invalid syntax between state and '{'

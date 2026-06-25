@@ -2,4 +2,4 @@
 'mermaid': patch
 ---
 
-fix: Ensure treemap labels render correctly in large nested diagrams
+fix(treeView): Ensure treemap labels render correctly in large nested diagrams
